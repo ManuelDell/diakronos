@@ -22,10 +22,21 @@ const require = createRequire(process.env.PW_BASIS
   : '/root/.hermes/scratch/diakronos-uiux/package.json')
 const { chromium } = require('playwright')
 
+// SEC-DEF2: KEIN eingebauter Standard-Zugang. Fehlt die Variable, bricht das
+// Skript mit Hinweis ab (der oeffentliche Musterhausen-Demo-Standard steht in
+// tools/demo/TESTKONTEN.md, wird aber nicht stillschweigend eingesetzt).
+function wertOderAbbruch(name) {
+  const wert = process.env[name]
+  if (wert && String(wert).trim()) return wert
+  console.error(`[abbruch] Umgebungsvariable ${name} ist nicht gesetzt. Die Demo-Skripte haben absichtlich KEINEN eingebauten Standard-Zugang (SEC-DEF2).`)
+  process.exit(2)
+}
+
+
 const BASE = (process.env.BASE || 'http://127.0.0.1:16091').replace(/\/$/, '')
 const ZIEL = process.env.ZIEL || '/root/.hermes/scratch/diakronos-uiux/devbadge1b/belege-einrichtung'
-const ADMIN = process.env.ADMIN_EMAIL || 'admin@example.org'
-const ADMIN_PASS = process.env.ADMIN_PASSWORD || 'Musterhausen-Demo1'
+const ADMIN = wertOderAbbruch('ADMIN_EMAIL')
+const ADMIN_PASS = wertOderAbbruch('ADMIN_PASSWORD')
 // Einrichtungs-LINK des frischen Stacks (`diakronos einrichtungslink`). Der
 // Admin wird hier angelegt — erst danach ist `#/einrichtung` (Assistent)
 // überhaupt erreichbar; ohne Admin gilt `einrichtung_offen = false` und die

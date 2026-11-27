@@ -599,10 +599,23 @@ def update_profile_picture(file_url=None):
     return {"ok": True}
 
 
-# ── Alter Sofortlöschpfad ──────────────────────────────────────────────────
+# ── Ehemaliger Sofortlöschpfad (ABN-5/W1: nur noch Sperre) ────────────────
+#
+# Früher überschrieb `delete_my_data` hier die Personendaten mit „Gelöscht",
+# deaktivierte das Konto und meldete ab. Diesen Weg gibt es nicht mehr: Löschen
+# läuft ausschließlich über den Antrag (N7, `loeschung_beantragen`) und die
+# Prüfung durch die Gemeindeverwaltung im Reiter Datenschutz (N6).
+#
+# Der Endpunkt bleibt als **Sperre** bestehen, damit ein alter Client nicht
+# versehentlich ins Leere läuft oder eine falsche Wirkung annimmt: er antwortet
+# immer 417 (`ValidationError` aus `throw`) und verweist auf den Antrag. Er
+# schreibt NICHTS (kein `enabled`, keine Sitzungsbeendigung) — abgemeldet wird
+# hier also auch niemand. Wer lesend in `benutzer_status.py`,
+# `auth_middleware.py` oder `settings.py` auf `delete_my_data` trifft: gemeint
+# ist der aktive Widerruf über `konto_sperren` (Admin) bzw. der Löschantrag.
 
 @whitelist(methods=["POST"], allow_guest=False)
 def delete_my_data():
-    """Alte Clients dürfen den neuen Antrags-/Adminweg nicht umgehen."""
+    """Sperre für alte Clients: kein Sofortlöschen, Verweis auf den Antrag (417)."""
     _get_my_mitglied()
     throw("Bitte im Profil einen Löschantrag stellen. Die Gemeindeverwaltung prüft ihn; es werden nicht sofort Daten gelöscht.")

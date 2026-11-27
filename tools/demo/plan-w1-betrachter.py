@@ -14,6 +14,7 @@ ist idempotent. Es schreibt nur in die Wegwerf-Datenbank des Stacks.
 """
 from __future__ import annotations
 
+import os
 import sys
 
 from sqlalchemy import select
@@ -26,8 +27,35 @@ from diakronos_app.models.diakonos import (
     DienstbereichVerantwortlicher, GruppeVerantwortlicher, Mitglied,
 )
 
-EMAIL = "betrachter@example.org"
-PASSWORT = "musterhausen-demo"
+# SEC-DEF2: KEIN eingebauter Standard-Zugang. Der oeffentliche
+# Musterhausen-Demo-Standard (tools/demo/TESTKONTEN.md) ist hier der Wert des
+# ANGELEGTEN Kontos — ein Skript soll das aber nicht stillschweigend benutzen.
+# SEC-DEF2: KEIN eingebauter Standard-Zugang. Fehlt die Variable (oder ist sie
+# leer), bricht das Skript mit erklaerender Meldung und Exit-Code 2 ab. Der
+# oeffentliche Musterhausen-Demo-Standard steht in ``tools/demo/TESTKONTEN.md``,
+# wird aber nicht stillschweigend eingesetzt: ein Skript, das versehentlich auf
+# einer ECHTEN Instanz laeuft, soll nicht mit bekannten Zugangsdaten weiterlaufen.
+# Absichtlich INLINE (kein Import aus ``tools/demo/zugang.py``): viele dieser
+# Skripte laufen als EINZELNE Datei in einen Container eingehaengt, andere
+# liegen ausserhalb von ``tools/demo`` — ein Nachbarmodul waere dort nicht da.
+def wert_oder_abbruch(name: str, hinweis: str = "") -> str:
+    wert = os.environ.get(name, "")
+    if str(wert).strip():
+        return wert
+    zusatz = f" {hinweis.strip()}" if hinweis.strip() else ""
+    print(
+        f"[abbruch] Umgebungsvariable {name} ist nicht gesetzt.{zusatz} "
+        "Die Demo-Skripte haben absichtlich KEINEN eingebauten Standard-Zugang "
+        "(SEC-DEF2): der oeffentliche Musterhausen-Demo-Standard steht in "
+        "tools/demo/TESTKONTEN.md, muss aber ausdruecklich uebergeben werden.",
+        file=sys.stderr,
+        flush=True,
+    )
+    raise SystemExit(2)
+
+
+EMAIL = wert_oder_abbruch("BETRACHTER_EMAIL")
+PASSWORT = wert_oder_abbruch("BETRACHTER_PASS")
 NAME = "Betrachter Test"
 #: Kandidaten in der Demo (Mitglieder ohne Leitung). Genommen wird das erste
 #: Mitglied, das in KEINER Verantwortungs-Tabelle steht.

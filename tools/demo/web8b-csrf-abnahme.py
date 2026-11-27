@@ -28,15 +28,40 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 
 from playwright.sync_api import sync_playwright
+
+# SEC-DEF2: KEIN eingebauter Standard-Zugang. Fehlt die Variable (oder ist sie
+# leer), bricht das Skript mit erklaerender Meldung und Exit-Code 2 ab. Der
+# oeffentliche Musterhausen-Demo-Standard steht in ``tools/demo/TESTKONTEN.md``,
+# wird aber nicht stillschweigend eingesetzt: ein Skript, das versehentlich auf
+# einer ECHTEN Instanz laeuft, soll nicht mit bekannten Zugangsdaten weiterlaufen.
+# Absichtlich INLINE (kein Import aus ``tools/demo/zugang.py``): viele dieser
+# Skripte laufen als EINZELNE Datei in einen Container eingehaengt, andere
+# liegen ausserhalb von ``tools/demo`` — ein Nachbarmodul waere dort nicht da.
+def wert_oder_abbruch(name: str, hinweis: str = "") -> str:
+    wert = os.environ.get(name, "")
+    if str(wert).strip():
+        return wert
+    zusatz = f" {hinweis.strip()}" if hinweis.strip() else ""
+    print(
+        f"[abbruch] Umgebungsvariable {name} ist nicht gesetzt.{zusatz} "
+        "Die Demo-Skripte haben absichtlich KEINEN eingebauten Standard-Zugang "
+        "(SEC-DEF2): der oeffentliche Musterhausen-Demo-Standard steht in "
+        "tools/demo/TESTKONTEN.md, muss aber ausdruecklich uebergeben werden.",
+        file=sys.stderr,
+        flush=True,
+    )
+    raise SystemExit(2)
+
 
 BASIS = os.environ.get("WEB8B_BASIS", "http://127.0.0.1:8311")
 PRAEFIX = "/diakronos"
 SPA = f"{BASIS}{PRAEFIX}/diakonos"
 AUSGABE = os.environ.get("WEB8B_AUSGABE", "/out")
-ADMIN = (os.environ.get("WEB8B_USER", "admin@example.org"),
-         os.environ.get("WEB8B_PASS", "Web8b-Admin-Pass-1"))
+ADMIN = (wert_oder_abbruch("WEB8B_USER"),
+         wert_oder_abbruch("WEB8B_PASS"))
 
 FALSCHER_TOKEN = "falscher-token-fuer-den-nachweis"
 ZIEL = "profile.update_my_profile"

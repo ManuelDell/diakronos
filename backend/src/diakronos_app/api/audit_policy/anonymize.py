@@ -15,14 +15,21 @@ Im Standalone-Backend ruft `diakronos_app/scheduler.py` dieselbe Funktion
 taeglich auf; es gibt KEINEN HTTP-Endpunkt (`@whitelist` fehlt — wie im
 Original, das ist ein Job, keine API).
 
-FRISTENLOGIK — 1:1 aus dem Original uebernommen (nicht geraten):
-* Frist aus `Diakronos Einstellungen.audit_log_retention_days`.
-* Ist das Feld leer/`None`/nicht lesbar -> Default **1095 Tage (3 Jahre)**.
-* Ist der Wert `<= 0` -> **Fruehaustieg, gar nichts wird anonymisiert**
-  (so dokumentiert das Original den expliziten Opt-out).
-* Sonst: Cutoff = `jetzt - retention_days`; anonymisiert werden Eintraege mit
-  `anonymized_at is NULL` UND `zeitstempel < cutoff` — **strikt kleiner**, also
-  ein Eintrag GENAU auf der Grenze bleibt unangetastet.
+FRISTENLOGIK — **feste Frist, nicht einstellbar** (ABN-5/W3, Entscheidung des
+Operators):
+* Das Original las `Diakronos Einstellungen.audit_log_retention_days`. Dieses
+  Feld existiert im Standalone weder im Modell (`models/diakronos.py`,
+  `DiakronosEinstellungen`) noch in einer Alembic-Migration. Der alte Code hat
+  es trotzdem gelesen und fiel deshalb immer auf den Default zurueck — die
+  zugesagte "Einstellbarkeit" war eine Fiktion.
+* Deshalb wird das Feld **nicht mehr gelesen**: die Frist steht als benannte
+  Konstante `AUDIT_LOG_AUFBEWAHRUNG_TAGE = 1095` (3 Jahre). Wer sie aendert,
+  aendert eine Zahl im Code und die Doku dazu — nicht eine Einstellung.
+* Cutoff = `jetzt - AUDIT_LOG_AUFBEWAHRUNG_TAGE`; anonymisiert werden Eintraege
+  mit `anonymized_at is NULL` UND `zeitstempel < cutoff` — **strikt kleiner**,
+  also ein Eintrag GENAU auf der Grenze bleibt unangetastet.
+* Der fruehere Opt-out (`Wert <= 0` -> gar nichts tun) entfaellt mit dem Feld.
+  Abschalten geht nur noch ueber den Scheduler (Job nicht registrieren).
 
 SCHEMA-REALITAET (geprueft, NICHT angenommen):
 `inventar/live_schema_ist.tsv` fuehrt `tabAudit Log` mit den hier benutzten
@@ -64,9 +71,17 @@ from diakronos_app.frappe_compat.registry_gen import column_names, model_for
 logger = logging.getLogger("diakronos_app.audit_policy")
 
 DOCTYPE_AUDIT_LOG = "Audit Log"
-# Der Single (Ein-Zeilen-DocType) mit der Frist-Konfiguration.
-_EINSTELLUNGEN = "Diakronos Einstellungen"
-DEFAULT_RETENTION_DAYS = 1095  # 3 Jahre — Original-Default
+
+# Aufbewahrungsfrist der Audit-Logs in Tagen — **feste Konstante, keine
+# Einstellung** (ABN-5/W3). Das fruehere Feld
+# `Diakronos Einstellungen.audit_log_retention_days` ist im Standalone nicht
+# vorhanden (weder Modell noch Migration) und wird hier bewusst nicht mehr
+# gelesen. 1095 Tage = 3 Jahre. Geaendert wird hier im Code, nicht in der DB.
+AUDIT_LOG_AUFBEWAHRUNG_TAGE = 1095
+
+# Alter Name (Original-Sprache); bleibt als Alias, damit bestehende Importe und
+# Tests nicht brechen. Neue Stellen nutzen AUDIT_LOG_AUFBEWAHRUNG_TAGE.
+DEFAULT_RETENTION_DAYS = AUDIT_LOG_AUFBEWAHRUNG_TAGE
 BATCH_LIMIT = 1000  # Original `limit=1000`
 
 # Site-Salt des Originals (`frappe.local.site or "diakronos"`). Im Standalone
@@ -74,56 +89,24 @@ BATCH_LIMIT = 1000  # Original `limit=1000`
 _SITE_SALT = "diakronos"
 
 
-def _cint(value: Any, default: int = 0) -> int:
-	"""`frappe.utils.cint` — tolerante Ganzzahl."""
-	try:
-		return int(value)
-	except (TypeError, ValueError):
-		return default
-
-
 def _site_now() -> datetime:
 	"""`frappe.utils.now_datetime()` — naiver UTC-Zeitstempel."""
 	return _now()
 
 
-def _single_field(feld: str):
-	"""Ein Feld des Singles `Diakronos Einstellungen` lesen (oder `None`).
-
-	`frappe.db.get_single_value("Diakronos Einstellungen", feld)` -> die
-	Einstellungszeile ist wie bei `api/orgchart_api.py` und
-	`api/kronos/permissions.py` ein Ein-Zeilen-Datensatz mit
-	`name == DocType-Name`; gelesen wird ueber `query.get_value`. Kein rohes SQL.
-	Fehlt der Wert, liefert die Funktion `None` — das Original faengt denselben
-	Fall per `try/except`.
-	"""
-	from diakronos_app.frappe_compat.query import get_value
-
-	try:
-		return get_value(_EINSTELLUNGEN, _EINSTELLUNGEN, feld)
-	except Exception:  # noqa: BLE001 — Original faengt hier ebenfalls alles ab
-		return None
-
-
 def _retention_days() -> int:
-	"""Frist in Tagen: gesetzter Wert, sonst Default 1095. 1:1 wie im Original.
+	"""Aufbewahrungsfrist der Audit-Logs in Tagen — fest 1095 (3 Jahre).
 
-	Reihenfolge exakt nach Original:
-	* Wert lesen (`_cint` -> `0` bei `None`/unparsebar)
-	* `retention_days or DEFAULT` — ABER der Original-Vergleich auf `<= 0`
-	  (Fruehaustieg) steht in `anonymize_expired_audit_logs` NACH diesem
-	  Default-Schritt. Damit ist der Default nur fuer "nicht gesetzt" wirksam
-	  und ein expliziter Opt-out kann NUR ueber das Vorzeichen entschieden
-	  werden. Deshalb hier NICHT `or`, sondern der Default nur bei
-	  fehlendem/ungueltigem Wert.
+	ABN-5/W3: Es gibt **kein** Einstellungsfeld. Das fruehere Lesen ueber
+	`Diakronos Einstellungen.audit_log_retention_days` ist entfernt, weil das
+	Feld weder im Modell noch in einer Migration existiert — der Wert war
+	damit ohnehin immer der Default. Die Frist ist die Konstante
+	`AUDIT_LOG_AUFBEWAHRUNG_TAGE`.
+
+	Die Funktion bleibt als eine benannte Stelle: ein Test prueft, dass sie
+	1095 liefert und dass dabei KEIN Feld gelesen wird (Mutationsprobe).
 	"""
-	raw = _single_field("audit_log_retention_days")
-	if raw is None or raw == "":
-		return DEFAULT_RETENTION_DAYS
-	try:
-		return int(raw)
-	except (TypeError, ValueError):
-		return DEFAULT_RETENTION_DAYS
+	return AUDIT_LOG_AUFBEWAHRUNG_TAGE
 
 
 def _hash_identifier(value):
@@ -172,10 +155,8 @@ def anonymize_expired_audit_logs() -> int:
 	"""
 	retention_days = _retention_days()
 
-	if retention_days <= 0:
-		# Expliziter Opt-out: nichts tun (Original-Zeile 18/19).
-		return 0
-
+	# Kein Opt-out mehr: die Frist ist fest (ABN-5/W3). Ein Abschalten waere
+	# eine Aenderung hier im Code, nicht ein Wert in der Datenbank.
 	cutoff_date = _site_now() - timedelta(days=retention_days)
 
 	# `anonymized_at is not set` + `zeitstempel < cutoff` — beides hart in der
@@ -222,6 +203,7 @@ def anonymize_expired_audit_logs() -> int:
 
 __all__ = [
 	"FRAPPE_MODULE",
+	"AUDIT_LOG_AUFBEWAHRUNG_TAGE",
 	"DEFAULT_RETENTION_DAYS",
 	"anonymize_expired_audit_logs",
 ]

@@ -1130,6 +1130,14 @@ class SichererAnhang(Base):
     datei: Mapped[Any | None] = mapped_column(String(140), nullable=True)
     dateiname: Mapped[Any | None] = mapped_column(String(140), nullable=True)
     dateityp: Mapped[Any | None] = mapped_column(String(140), nullable=True)
+    # ABN-5/W8: `loeschfrist` hat **keine Wirkung**. Kein Scheduler-Job wertet
+    # das Feld aus, kein Endpunkt setzt es (`planrahmen/dienste.py` legt die
+    # Zeile ohne Datum an), und keine Oberfläche bietet es an — die Anhänge
+    # hängen an Liedfassungen, nicht am Mitglied. Löschen geschieht manuell
+    # (Material entfernen) und bei einer Mitglieder-Löschung über die
+    # Anonymisierung. Das Feld bleibt nur, weil es im Alt-Schema stand (Port).
+    # Wer es je befüllt, baut den Job mit — sonst verspricht er eine Frist,
+    # die niemand durchsetzt (docs/datenschutz/LOESCHFRISTEN.md Abschnitt 3).
     loeschfrist: Mapped[Any | None] = mapped_column(Date, nullable=True)
     sichtbarkeits_ebene: Mapped[Any | None] = mapped_column(String(140), nullable=True)
     beschreibung: Mapped[Any | None] = mapped_column(Text, nullable=True)

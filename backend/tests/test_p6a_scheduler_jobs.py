@@ -16,6 +16,7 @@ from datetime import date, datetime, timedelta, timezone
 import pytest
 
 from diakronos_app.api.audit_policy.anonymize import (
+	AUDIT_LOG_AUFBEWAHRUNG_TAGE,
 	DEFAULT_RETENTION_DAYS,
 	anonymize_expired_audit_logs,
 )
@@ -74,42 +75,29 @@ def _anmeldung(sess, name: str, creation, status: str):
 
 
 def _set_retention(monkeypatch, days):
-	"""`Diakronos Einstellungen.audit_log_retention_days` liefern.
+	"""Frist fuer einen Test setzen — seit ABN-5/W3 die Konstante im Modul.
 
-	SCHEMA-REALITAET (geprueft, NICHT angenommen):
-	* `Spaltenabzug der Betriebs-DB` fuehrt **keine** Tabelle
-	  `Diakronos Einstellungen` — das DocType ist `issingle: 1` (s.
-	  `referenz/.../doctype/diakronos_einstellungen/diakronos_einstellungen.json`)
-	  und hat dort **kein** Feld `audit_log_retention_days`.
-	* Das Feld existiert nur in `anonymize.py` selbst.
-
-	Deshalb wird die Einstellung — wie in der Realitaet — ueber die
-	Lesefunktion des Singles nachgebildet (`_single_field`), nicht ueber eine
-	Spalte. Das entspricht exakt dem Originalpfad
-	`frappe.db.get_single_value("Diakronos Einstellungen", ...)`.
+	SCHEMA-REALITAET (geprueft, NICHT angenommen): Das frueher hier
+	nachgebildete Feld `Diakronos Einstellungen.audit_log_retention_days`
+	existiert im Standalone weder im Modell noch in einer Migration. Der Code
+	liest es seit ABN-5/W3 nicht mehr; die Frist ist die Konstante
+	`AUDIT_LOG_AUFBEWAHRUNG_TAGE` (1095 Tage). Ein Test, der eine andere Frist
+	braucht, setzt diese Konstante — genau so, wie eine Aenderung im Betrieb
+	auch aussehen wuerde (Code, nicht Datenbank).
 	"""
 	from diakronos_app.api.audit_policy import anonymize
 
-	monkeypatch.setattr(
-		anonymize,
-		"_single_field",
-		lambda feld: days if feld == "audit_log_retention_days" else None,
-	)
-
-
-def _clear_retention(monkeypatch):
-	"""Kein Wert gesetzt (Single leer) -> Original faellt auf Default 1095."""
-	from diakronos_app.api.audit_policy import anonymize
-
-	monkeypatch.setattr(anonymize, "_single_field", lambda feld: None)
+	# `_retention_days` liest die Konstante zur Laufzeit aus dem Modul.
+	monkeypatch.setattr(anonymize, "AUDIT_LOG_AUFBEWAHRUNG_TAGE", days)
 
 
 # ── anonymize_expired_audit_logs ────────────────────────────────────────────
 
 
 def test_anonymize_default_frist_ist_1095_tage():
-	"""Ohne gesetzten Wert greift der Original-Default: 3 Jahre."""
-	assert DEFAULT_RETENTION_DAYS == 1095
+	"""Feste Frist 1095 Tage (3 Jahre); der Original-Name ist ein Alias darauf."""
+	assert AUDIT_LOG_AUFBEWAHRUNG_TAGE == 1095
+	assert DEFAULT_RETENTION_DAYS == AUDIT_LOG_AUFBEWAHRUNG_TAGE
 
 
 def test_anonymize_nichts_zu_tun_ohne_daten(patched_db):
@@ -190,30 +178,48 @@ def test_anonymize_stempelt_anonymized_at(patched_db, monkeypatch):
 	assert isinstance(row.anonymized_at, datetime)
 
 
-def test_anonymize_frist_null_ist_opt_out(patched_db, monkeypatch):
-	"""`retention_days <= 0` -> gar nichts anonymisieren (Original-Zeile 18)."""
-	_set_retention(monkeypatch, 0)
-	sess = patched_db()
-	_audit(sess, "AL-NULL", _now() - timedelta(days=9999))
-	sess.close()
+def test_anonymize_nutzt_feste_konstante_und_liest_kein_feld(patched_db, monkeypatch):
+	"""ABN-5/W3: Die Frist ist eine Konstante, kein Feld — Mutationsprobe.
 
-	assert anonymize_expired_audit_logs() == 0
+	Das fruehere Feld `Diakronos Einstellungen.audit_log_retention_days` ist im
+	Standalone nicht vorhanden. Damit niemand es versehentlich wieder einbaut,
+	prueft dieser Test beides:
 
-	sess = patched_db()
-	from diakronos_app.models.diakonos import AuditLog
+	1. wird ein solches Feld doch gelesen (der Compat-Leser wird scharf
+	   geschaltet), schlaegt der Test auf — er darf gar nicht erst aufgerufen
+	   werden;
+	2. `_retention_days()` liefert die Konstante, auch wenn der Leser luegen
+	   wuerde.
 
-	row = sess.get(AuditLog, "AL-NULL")
-	sess.close()
-	assert row.anonymized_at is None
-	assert row.actor == "anna@example.org"
-
-
-def test_anonymize_ohne_einstellungen_nutzt_default(patched_db, monkeypatch):
-	"""Kein Single vorhanden -> Default 1095 Tage, nicht 0 (nicht alles loeschen).
-
-	Originalpfad: `get_single_value` wirft/leer -> `cint(None) == 0` -> `or 1095`.
+	Der fruehere Opt-out (`Wert <= 0` -> nichts tun) gibt es nicht mehr; das
+	ist gewollt (Entscheidung des Operators: keine neue Einstellung bauen).
 	"""
-	_clear_retention(monkeypatch)
+	from diakronos_app.api.audit_policy import anonymize
+	from diakronos_app.frappe_compat import query as compat_query
+
+	aufrufe: list[str] = []
+
+	def _verboten(*args, **kwargs):
+		aufrufe.append(str(args[:1]))
+		raise AssertionError("ABN-5/W3: kein Zugriff auf ein Frist-Feld erlaubt")
+
+	monkeypatch.setattr(compat_query, "get_value", _verboten)
+	monkeypatch.setattr(anonymize, "get_all", lambda *a, **k: [])
+
+	assert anonymize._retention_days() == 1095
+	assert anonymize.anonymize_expired_audit_logs() == 0
+	assert aufrufe == []
+	# Die Konstante ist der einzige Ort, an dem die Zahl steht.
+	assert AUDIT_LOG_AUFBEWAHRUNG_TAGE == DEFAULT_RETENTION_DAYS
+
+
+def test_anonymize_ohne_einstellungen_nutzt_default(patched_db):
+	"""Keine Einstellung vorhanden -> es gilt die feste Frist 1095 Tage.
+
+	ABN-5/W3: Es gibt kein Einstellungsfeld mehr; der Default ist die Konstante.
+	Ein Eintrag mit 1200 Tagen liegt ausserhalb, einer mit 100 Tagen innerhalb.
+	"""
+	assert AUDIT_LOG_AUFBEWAHRUNG_TAGE == 1095
 	sess = patched_db()
 	_audit(sess, "AL-1200", _now() - timedelta(days=1200))
 	_audit(sess, "AL-100", _now() - timedelta(days=100))

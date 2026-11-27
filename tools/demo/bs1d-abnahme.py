@@ -40,6 +40,30 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
+# SEC-DEF2: KEIN eingebauter Standard-Zugang. Fehlt die Variable (oder ist sie
+# leer), bricht das Skript mit erklaerender Meldung und Exit-Code 2 ab. Der
+# oeffentliche Musterhausen-Demo-Standard steht in ``tools/demo/TESTKONTEN.md``,
+# wird aber nicht stillschweigend eingesetzt: ein Skript, das versehentlich auf
+# einer ECHTEN Instanz laeuft, soll nicht mit bekannten Zugangsdaten weiterlaufen.
+# Absichtlich INLINE (kein Import aus ``tools/demo/zugang.py``): viele dieser
+# Skripte laufen als EINZELNE Datei in einen Container eingehaengt, andere
+# liegen ausserhalb von ``tools/demo`` — ein Nachbarmodul waere dort nicht da.
+def wert_oder_abbruch(name: str, hinweis: str = "") -> str:
+    wert = os.environ.get(name, "")
+    if str(wert).strip():
+        return wert
+    zusatz = f" {hinweis.strip()}" if hinweis.strip() else ""
+    print(
+        f"[abbruch] Umgebungsvariable {name} ist nicht gesetzt.{zusatz} "
+        "Die Demo-Skripte haben absichtlich KEINEN eingebauten Standard-Zugang "
+        "(SEC-DEF2): der oeffentliche Musterhausen-Demo-Standard steht in "
+        "tools/demo/TESTKONTEN.md, muss aber ausdruecklich uebergeben werden.",
+        file=sys.stderr,
+        flush=True,
+    )
+    raise SystemExit(2)
+
+
 DB_URL = os.environ.get("DB_URL", "")
 try:  # psycopg ist im Playwright-Image nicht dabei -> eigenes Image nutzen
     import psycopg
@@ -54,8 +78,8 @@ except ModuleNotFoundError:  # pragma: no cover — Meldung ist eindeutig
 BASE = os.environ.get("BASE", "http://app:8000").rstrip("/")
 PRAEFIX = os.environ.get("PRAEFIX", "/diakronos")
 ZIEL = Path(os.environ.get("ZIEL", "/out"))
-ADMIN = ("admin@example.org", "musterhausen-demo")
-MITGLIED = ("anna.beispiel@example.org", "musterhausen-demo")
+ADMIN = (wert_oder_abbruch("ADMIN_EMAIL"), wert_oder_abbruch("ADMIN_PASS"))
+MITGLIED = (wert_oder_abbruch("MITGLIED_EMAIL"), wert_oder_abbruch("MITGLIED_PASS"))
 #: Konto, dem die Abnahme voruebergehend die Rolle „Website-Moderator“ gibt.
 MODERATOR_KONTO = MITGLIED
 

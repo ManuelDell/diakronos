@@ -1001,7 +1001,13 @@ def test_der_einstieg_importiert_die_logik_nicht_beim_laden_des_stores():
          "import diakronos_app.frappe_compat.loginversuche as m, sys; "
          "print('cli_entsperren' in sys.modules)"],
         capture_output=True, text=True, timeout=UNTERPROZESS_FRIST,
-        env={"PYTHONPATH": "/app/src", "PATH": "/usr/local/bin:/usr/bin:/bin"},
+        env={
+            "PYTHONPATH": "/app/src",
+            "PATH": "/usr/local/bin:/usr/bin:/bin",
+            # SEC-DEF2: ohne APP_ENV gilt Betrieb — die Modellpruefung wuerde
+            # hier an den Test-Platzhaltern scheitern. Explizit Testumgebung.
+            "APP_ENV": "test",
+        },
     )
 
     assert prozess.returncode == 0, prozess.stdout + prozess.stderr

@@ -174,7 +174,9 @@ def laufende_sicherung(session: Session) -> Sicherungslauf | None:
 
 
 def raeume_abgebrochene_auf(session: Session, *, jetzt: datetime | None = None,
-                            grund: str = "Der Lauf wurde abgebrochen (Neustart).") -> list[str]:
+                            grund: str = "Der Lauf wurde abgebrochen (Neustart).",
+                            nicht_ab_vor: datetime | None = None,
+                            abschliessen: tuple[str, ...] = ()) -> list[str]:
 	"""Zeilen mit Status ``laeuft`` klaeren.
 
 	Wird beim START eines Laufs aufgerufen: was jetzt noch ``laeuft`` ist,
@@ -183,6 +185,18 @@ def raeume_abgebrochene_auf(session: Session, *, jetzt: datetime | None = None,
 	vollstaendig — typisch nach dem Einspielen einer Sicherung, deren eigener
 	Dump die Protokollzeile noch im Zustand ``laeuft`` enthaelt. Dann wird er
 	als ``ok`` gefuehrt, statt einen falschen Fehlschlag zu melden.
+
+	``nicht_ab_vor`` (ABN-2b, Opus-Befund M1): Zeilen, die FRUEHESTENS zu
+	diesem Zeitpunkt begannen, werden NICHT angefasst. Der Aufruf nach dem
+	Einspielen laeuft mitten im selben Vorgang — und die Vorsicherung, die
+	er gerade geschrieben hat, steht dort noch auf ``laeuft`` mit fehlender
+	``FERTIG``-Markierung; ohne diese Grenze wuerde sie als fehlgeschlagen
+	gemeldet, obwohl sie erfolgreich ist.
+
+	``abschliessen``: Namen, die ausdruecklich als erledigt gefuehrt werden —
+	die Sicherung, die gerade eingespielt wurde (ihr Dump traegt die eigene
+	Zeile im Zustand ``laeuft``).
+
 	Rueckgabe: die Namen der betroffenen Laeufe.
 	"""
 	from diakronos_app.sicherung import dump
@@ -196,19 +210,32 @@ def raeume_abgebrochene_auf(session: Session, *, jetzt: datetime | None = None,
 	from diakronos_app.sicherung import cloud
 
 	basis = cloud.lokale_basis()
+	erledigt = set(abschliessen)
 	offen = list(session.scalars(
 		select(Sicherungslauf).where(Sicherungslauf.status == STATUS_LAEUFT)
 	))
+	betroffen: list[str] = []
 	for zeile in offen:
 		verzeichnis = basis / zeile.name
-		if (verzeichnis / dump.FERTIG_NAME).is_file():
+		if zeile.name in erledigt:
+			zeile.status = STATUS_OK
+			zeile.meldung = "Sicherung vollstaendig (eingespielt)."
+			if not zeile.groesse_bytes:
+				zeile.groesse_bytes = dump.verzeichnisgroesse(verzeichnis)
+		elif (verzeichnis / dump.FERTIG_NAME).is_file():
 			zeile.status = STATUS_OK
 			zeile.meldung = "Sicherung vollstaendig (Fertig-Markierung)."
 			if not zeile.groesse_bytes:
 				zeile.groesse_bytes = dump.verzeichnisgroesse(verzeichnis)
+		elif nicht_ab_vor is not None and zeile.begonnen_am is not None \
+				and zeile.begonnen_am >= nicht_ab_vor:
+			# Ein Lauf, der NACH dem Stichtag begann, laeuft JETZT noch (er
+			# wurde in diesem Vorgang gestartet) — er bleibt ``laeuft``.
+			continue
 		else:
 			zeile.status = STATUS_FEHLGESCHLAGEN
 			zeile.meldung = grund
 		zeile.beendet_am = zeile.beendet_am or zeit
+		betroffen.append(zeile.name)
 	session.commit()
-	return [zeile.name for zeile in offen]
+	return betroffen

@@ -650,8 +650,9 @@ def konto_sperren(mitglied_id: str, gesperrt: bool = True) -> dict[str, Any]:
     """Konto sperren (`enabled=False`) oder freischalten (Admin).
 
     Aktiver Widerruf: `widerrufe_sitzungen` beendet die Sitzungen sofort, der
-    Status-Cache wird vergessen — dieselbe Funktion, die auch
-    `delete_my_data` benutzt (B1).
+    Status-Cache wird vergessen (B1). ABN-5/W1: Der frühere Sofortloeschweg
+    `profile.delete_my_data` schreibt nichts mehr (417, Verweis auf den
+    Loeschantrag); der einzige Schreibweg auf `enabled` ist dieser hier.
     """
     _require_admin()
     name = str(mitglied_id or "").strip()

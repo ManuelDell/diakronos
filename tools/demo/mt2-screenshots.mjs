@@ -5,10 +5,15 @@
  * Bild des Cropper-Dialogs nach der Dateiauswahl (der Weg, den das Mitglied
  * geht) — damit der Befund „Upload klappt, Speichern scheitert" sichtbar ist.
  *
- * Aufruf im Wegwerf-Netz (playwright wird unter /tmp/pw nachinstalliert):
+ * Aufruf im Wegwerf-Netz (playwright wird unter /tmp/pw nachinstalliert).
+ * Angemeldet wird das Konto der Rolle „Mitglied“ — Adresse/Passwort NUR aus der
+ * Umgebung (SEC-DEF2, kein eingebauter Standard; Musterwerte in
+ * tools/demo/TESTKONTEN.md):
  *   docker run --rm --network diakronos-mt2_default \
  *     -v "<repo>":/w:ro -v "<ziel>":/ausgabe \
- *     -e MT2_BASE=http://app:8000/diakronos mcr.microsoft.com/playwright:v1.49.0-noble \
+ *     -e MT2_BASE=http://app:8000/diakronos \
+ *     -e MT2_PROFIL_EMAIL=<adresse> -e MT2_PROFIL_PASS=<passwort> \
+ *     mcr.microsoft.com/playwright:v1.49.0-noble \
  *     sh -c 'npm i -s --prefix /tmp/pw playwright@1.49.0 >/dev/null 2>&1;
  *            export NODE_PATH=/tmp/pw/node_modules;
  *            node /w/tools/demo/mt2-screenshots.mjs'
@@ -16,9 +21,26 @@
 import { chromium } from 'playwright'
 import fs from 'node:fs'
 
+// SEC-DEF2: KEIN eingebauter Standard-Zugang. Fehlt die Variable, bricht das
+// Skript mit Hinweis ab (der oeffentliche Musterhausen-Demo-Standard steht in
+// tools/demo/TESTKONTEN.md, wird aber nicht stillschweigend eingesetzt).
+function wertOderAbbruch(name) {
+  const wert = process.env[name]
+  if (wert && String(wert).trim()) return wert
+  console.error(`[abbruch] Umgebungsvariable ${name} ist nicht gesetzt. Die Demo-Skripte haben absichtlich KEINEN eingebauten Standard-Zugang (SEC-DEF2).`)
+  process.exit(2)
+}
+
+
 const BASIS = process.env.MT2_BASE || 'http://app:8000/diakronos'
 const ZIEL = process.env.MT2_ZIEL || '/ausgabe'
-const KONTO = { usr: 'rebekka.fink@example.org', pwd: 'musterhausen-demo' }
+// SEC-DEF2: KEIN eingebauter Standard-Zugang; Abbruch mit Hinweis.
+// Vorher ein festes Mitglied (rebekka.fink@example.org): das Skript zeigt die
+// PROFILSEITE des angemeldeten Mitglieds — ein Konto der Rolle „Mitglied“.
+const PROFIL_KONTO = {
+  usr: wertOderAbbruch('MT2_PROFIL_EMAIL'),
+  pwd: wertOderAbbruch('MT2_PROFIL_PASS'),
+}
 
 // 1x1-PNG: reicht als Datei fuer den Cropper (er skaliert selbst).
 const BILD = Buffer.from(
@@ -36,8 +58,8 @@ async function anmelden(page) {
   await page.goto(BASIS + '/diakonos#/profile', { waitUntil: 'domcontentloaded' })
   // Anmeldemaske kann vorgeschaltet sein.
   if (await page.locator('input[name="usr"]').count()) {
-    await page.fill('input[name="usr"]', KONTO.usr)
-    await page.fill('input[name="pwd"]', KONTO.pwd)
+    await page.fill('input[name="usr"]', PROFIL_KONTO.usr)
+    await page.fill('input[name="pwd"]', PROFIL_KONTO.pwd)
     await Promise.all([
       page.waitForLoadState('networkidle').catch(() => {}),
       page.click('button[type="submit"], form button'),

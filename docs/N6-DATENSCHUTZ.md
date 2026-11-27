@@ -84,6 +84,16 @@ Scheduler-Job `chat_aufbewahrung` (`chat_aufbewahrung.aufraeumen()`).
 | Text gelöschter/entfernter Nachrichten | **6 Monate**, dann endgültig leer | nein | Zeitpunkt der Löschung |
 | Stimmenzeilen offener Umfragen | **6 Monate**, dann gelöscht (Zähler bleibt) | nein | Schließung der Umfrage |
 | Meldungen | **12 Monate** nach Abschluss | nein | Entscheidung der Moderation |
+| Chat-Anhänge (Datei in der Ablage) | **24 Stunden** bei offenen Anhängen ohne Nachricht, sonst mit der Nachricht bzw. dem Gespräch | nein — `ANHANG_OFFEN_STUNDEN = 24` (`models/chat.py`) | Anlage des Anhangs (`angelegt_am`) |
+| Hochlade-Marken (Tageskontingent, Verhaltensdatum am Konto) | **2 Tage** | nein — `HOCHLADUNG_AUFBEWAHRUNG_TAGE = 2` (`models/chat.py`) | Anlage der Marke (`angelegt_am`), in Tagen |
+
+Damit sind es **sieben** Fristen — dieselbe Zahl, die
+`AUFBEWAHRUNG_FRISTEN` führt. Ein offener Entsorgungsauftrag
+(`chat_anhang_entsorgung`) ist keine Aufbewahrung, sondern eine Arbeitsliste:
+er endet mit dem erfolgreichen Löschen der Datei (Minuten-Job). Die kurzen
+Fristen (24 Stunden, 2 Tage) setzt derselbe Scheduler im Minuten-Takt durch
+(Job `chat_anhaenge_aufraeumen`, `scheduler.py`), die Monatsfristen der
+tägliche Lauf.
 
 **Wer darf die Fristen ändern.** Nur Administratoren (Entscheidung F8 in
 `docs/konzepte/CHAT-KONZEPT.md` §9) — geprüft über den zentralen Rechte-Kern

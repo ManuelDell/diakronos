@@ -888,7 +888,7 @@ def test_wiederherstellen_bricht_bei_beschaedigter_datei_ab(backup_heim,
 
 
 def test_wiederherstellen_listet_und_meldet_unbekanntes(backup_heim, nextcloud_aktiv,
-                                                        capsys):
+                                                        capsys, monkeypatch):
 	import pytest as _pytest
 
 	from diakronos_app.sicherung import wiederherstellen
@@ -897,6 +897,13 @@ def test_wiederherstellen_listet_und_meldet_unbekanntes(backup_heim, nextcloud_a
 	cloud.hochladen(ordner, ablage=nextcloud_aktiv)
 	assert wiederherstellen.main(["--liste"]) == 0
 	assert "2026-11-18_030000" in capsys.readouterr().out
+	# ABN-2: der Aufruf PRUEFT jetzt auch (Pruefsummen, lesbarer Dump). Der
+	# Dump dieser Fixture ist eine Attrappe (`,dump`), kein `-Fc`-Archiv —
+	# die Pruefung wird deshalb ersetzt; geprueft wird hier der Weg
+	# „holen aus der Ablage + Bericht", nicht der Dump-Index (dafuer steht
+	# tests/test_abn2_wiederherstellen.py).
+	monkeypatch.setattr(wiederherstellen, "pruefe_dump_inhalt",
+	                    lambda *a, **k: {"mitglied": 1})
 	assert wiederherstellen.main(["2026-11-18_030000"]) == 0
 	with _pytest.raises(wiederherstellen.WiederherstellungsFehler):
 		wiederherstellen.hole_lokal("2020-01-01_000000")

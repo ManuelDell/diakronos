@@ -22,10 +22,39 @@ JSON (`ergebnis.json`).
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
+
+# SEC-DEF2: KEIN eingebauter Standard-Zugang. Fehlt die Variable (oder ist sie
+# leer), bricht das Skript mit erklaerender Meldung und Exit-Code 2 ab. Der
+# oeffentliche Musterhausen-Demo-Standard steht in ``tools/demo/TESTKONTEN.md``,
+# wird aber nicht stillschweigend eingesetzt: ein Skript, das versehentlich auf
+# einer ECHTEN Instanz laeuft, soll nicht mit bekannten Zugangsdaten weiterlaufen.
+# Absichtlich INLINE (kein Import aus ``tools/demo/zugang.py``): viele dieser
+# Skripte laufen als EINZELNE Datei in einen Container eingehaengt, andere
+# liegen ausserhalb von ``tools/demo`` — ein Nachbarmodul waere dort nicht da.
+def wert_oder_abbruch(name: str, hinweis: str = "") -> str:
+    wert = os.environ.get(name, "")
+    if str(wert).strip():
+        return wert
+    zusatz = f" {hinweis.strip()}" if hinweis.strip() else ""
+    print(
+        f"[abbruch] Umgebungsvariable {name} ist nicht gesetzt.{zusatz} "
+        "Die Demo-Skripte haben absichtlich KEINEN eingebauten Standard-Zugang "
+        "(SEC-DEF2): der oeffentliche Musterhausen-Demo-Standard steht in "
+        "tools/demo/TESTKONTEN.md, muss aber ausdruecklich uebergeben werden.",
+        file=sys.stderr,
+        flush=True,
+    )
+    raise SystemExit(2)
+
+
+# SEC-DEF2: Zugangsdaten ausdruecklich aus der Umgebung, kein Demo-Standard.
+ADMIN_EMAIL = wert_oder_abbruch("ADMIN_EMAIL")
+ADMIN_PASS = wert_oder_abbruch("ADMIN_PASS")
 
 BEFUND_MUSTER = (
     "was accessed during render but is not defined",
@@ -82,7 +111,7 @@ def main(argv: list[str]) -> int:
             seite = kontext.new_page()
             fehler = _sammle_fehler(seite)
             try:
-                _anmelden(seite, basis, "admin@example.org", "musterhausen-demo")
+                _anmelden(seite, basis, ADMIN_EMAIL, ADMIN_PASS)
                 if thema == "light":
                     ergebnis["schritte"]["anmeldung"] = seite.url
 

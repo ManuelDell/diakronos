@@ -84,22 +84,69 @@ von `openssl rand -hex 32` dahinter eintragen. Ein leerer Wert zählt wie ein
 fehlender — Compose meldet dann
 „`SECRET_KEY muss in .env gesetzt sein (openssl rand -hex 32)`" und startet nicht.
 
-### 2.2a Startprüfung: unsichere Standardwerte (SEC-DEF1)
+### 2.2a Betriebsmodus und Startprüfung (SEC-DEF1/SEC-DEF2)
+
+#### Betriebsmodus ist der Standard
+
+`APP_ENV` bestimmt, ob die Anwendung die Prüfungen aus diesem Abschnitt überhaupt
+ausführt. **Seit SEC-DEF2 (26.11.2026) gilt: fehlt `APP_ENV`, läuft die App im
+BETRIEBSMODUS** — also mit allen Prüfungen. Die Vorgabe in `.env.example` und
+in `compose/stack.yml` ist `APP_ENV=production`.
+
+| `APP_ENV` | Modus | Prüfungen in diesem Abschnitt |
+|---|---|---|
+| nicht gesetzt, leer, `production`, `prod`, `staging`, … | Betrieb | **aktiv** (Start wird verweigert) |
+| `development`, `test`, `dev` (Groß-/Kleinschreibung egal) | Entwicklung/Test | aus — Platzhalter erlaubt |
+
+Vorher war der Rückfall `development`; damit war die Prüfung in einer
+Standardinstallation (ohne gesetzte Zeile) wirkungslos. Ein **leerer** Wert
+(`APP_ENV=` in der `.env`) zählt wie ein fehlender, also als Betrieb — es gibt
+keine stille Freigabe durch eine leere Zeile.
+
+Eine **bestehende Entwicklungsinstanz** (Betrieb auf `:8100`, `devecg`, lokale
+Läufe), die bisher auf den Rückfall `development` vertraut hat, muss vor dem
+Deploy ausdrücklich `APP_ENV=development` (oder `test`) in ihre `.env`
+eintragen — sonst verweigert sie den Start, sobald `SECRET_KEY` kürzer als 32
+Zeichen ist oder `POSTGRES_PASSWORD` noch `diakronos` lautet. Das ist gewollt:
+eine Instanz mit Platzhalter-Geheimnissen soll nicht als Betrieb durchlaufen.
+
+#### Geprüfte Werte
 
 Zusätzlich zu Compose prüft die Anwendung selbst beim Start (vor der
-Migration) zwei Werte und **verweigert den Start** mit deutscher Meldung,
+Migration) diese Werte und **verweigert den Start** mit deutscher Meldung,
 wenn sie noch die einkompilierten Platzhalter tragen:
 
 | Prüfung | Bedingung | Meldung / Abhilfe |
 |---|---|---|
-| `SECRET_KEY` | Wert ist `insecure-dev-key` **oder** kürzer als 32 Zeichen | eigenen Schlüssel erzeugen: `openssl rand -hex 32` |
-| `DATABASE_URL` | Passwort ist das bekannte Standard-Passwort `diakronos` | eigenes Passwort in `POSTGRES_PASSWORD` setzen: `openssl rand -base64 24` |
+| `SECRET_KEY` | Wert ist `insecure-dev-key` **oder** besteht aus **einem einzigen wiederholten Zeichen** (`aaaa…`, `0000…` — sieht aus wie „auf 32 Zeichen aufgefüllt“) **oder** ist kürzer als 32 Zeichen (auch leer) | eigenen Schlüssel erzeugen: `openssl rand -hex 32` |
+| `DATABASE_URL` | Passwort ist das bekannte Standard-Passwort `diakronos` (Groß-/Kleinschreibung egal, also auch `DIAKRONOS`), **leer** (`diakronos:@db/…`, entsteht z. B. durch ein leeres `POSTGRES_PASSWORD`), **fehlt ganz** (`diakronos@db/…` — Benutzer ohne Passwort) oder steht als **Abfrage-Parameter** (`…?password=diakronos`, auch `?passwd=`/`?pwd=`) | eigenes Passwort in `POSTGRES_PASSWORD` setzen: `openssl rand -base64 24` |
 
-**Nicht** geprüft wird in `APP_ENV=development` und `APP_ENV=test`: dort sind
-die Platzhalter ausdrücklich erlaubt (lokale Entwicklung, Testsuite). Eine
-Installation mit den Vorlagenwerten läuft deshalb bereits mit
-`APP_ENV=development` — für den echten Betrieb `APP_ENV=production` setzen,
-damit diese Prüfung greift.
+Steht das Passwort **zusätzlich** als Abfrage-Parameter mit einem anderen Wert
+als `diakronos`, gilt die Verbindung als sicher — ein eigenes Geheimnis wird
+nicht beanstandet, auch wenn an anderer Stelle der Platzhalter auftaucht.
+
+Eine Verbindungszeichenfolge ganz **ohne** Benutzerinfo (`postgresql://db/x`)
+wird nicht beanstandet: dort gibt es weder Benutzer noch Passwort, die
+Authentifizierung verlangt dann der Server selbst.
+
+Nicht geprüft wird in `APP_ENV=development`, `APP_ENV=test` und `APP_ENV=dev`:
+dort sind die Platzhalter ausdrücklich erlaubt (lokale Entwicklung, Testsuite).
+
+#### Demo- und Diagnose-Schalter
+
+Diese Schalter sind Entwicklungs-Werkzeuge und standardmäßig AUS. Sind sie im
+Betriebsmodus eingeschaltet, **meldet** die Startprüfung das als Warnung im
+Container-Protokoll — sie verweigert den Start aber NICHT (eine bestehende
+Installation mit eingeschaltetem Dev-Modus soll nach dem Update weiterlaufen):
+
+| Variable | Wirkung | im Betrieb |
+|---|---|---|
+| `DEVMODE_ENABLED=1` | roter Rahmen, Element-Auswahl, Befunde, Backend-Überwachung | Warnung — abschalten (`DEVMODE_ENABLED=0`) |
+| `SEC_DOKU_OEFFENTLICH=1` | `/docs`, `/redoc`, `/openapi.json` offen | Warnung — abschalten (`SEC_DOKU_OEFFENTLICH=0`) |
+
+Einen Schalter, der die Startprüfung selbst umgeht (etwa `TESTSUITE_ENABLED`),
+gibt es nicht und soll es nicht geben; die einzige Freigabe ist ein
+ausdrücklich gesetztes `APP_ENV=development|test|dev` (siehe 2.2a oben).
 
 Die Prüfung läuft an zwei Stellen: beim Aufbau der Konfiguration (jeder
 Prozess, auch Worker und Scheduler) und im Container-Entrypoint, der daraus
@@ -324,15 +371,16 @@ und [Abschnitt 9](#9-nicht-vorhanden--bewusst-offen).
 
 ### 3.2 Abmelden
 
-In der Oberfläche gibt es **keine Abmelde-Schaltfläche**. Der Weg aus der
-Anwendung heraus ist: Browserfenster schließen oder den privaten Modus
-verlassen. Das Sitzungs-Cookie bleibt dann bis zum Ablauf bestehen
-(voreingestellt 24 Stunden, siehe `SESSION_TTL_SECONDS` in der `.env`).
+**„Abmelden" steht unten in der Seitenleiste** (BF1-L, ehemaliger Eintrag im
+Profilmenü; im eingeklappten Zustand als Symbol mit dem Titel „Abmelden"). Der
+Klick beendet die Sitzung auf dem Server und führt auf die Anmeldeseite. Das
+ist bei einem gemeinsam genutzten Rechner der richtige Weg — Schließen des
+Browserfensters genügt **nicht**: das Sitzungs-Cookie bleibt dann bis zum
+Ablauf bestehen (voreingestellt 24 Stunden, siehe `SESSION_TTL_SECONDS` in der
+`.env`).
 
-Technisch beendet nur ein direkter Aufruf von `/api/method/logout` die
-Sitzung. Wenn Sie für einen gemeinsam genutzten Rechner eine echte
-Abmeldung brauchen, ist das derzeit der einzige Weg — eine Schaltfläche
-dafür gibt es nicht.
+Technisch ist das ein POST auf `/api/method/logout`; dasselbe erreicht man von
+Hand, wenn die Oberfläche einmal nicht erreichbar ist.
 
 ---
 
@@ -566,12 +614,25 @@ Stammdaten und lässt sie bearbeiten:
   Vorgang mit Folgen (siehe unten).
 - **Foto-Einwilligung und Werbeeinwilligung** — zwei Schalter mit je einem
   Widerruf. Jede Umschaltung wird revisionssicher protokolliert.
-- **„Einwilligung widerrufen & Daten löschen"** — der DSGVO-Widerruf. Er
-  überschreibt die persönlichen Daten mit „Gelöscht", deaktiviert das Konto
-  und meldet ab. Die Mitgliedschaft selbst bleibt bestehen — sonst würden
-  Mitgliedsbeiträge, Dienstplan und Kinder ebenfalls verschwinden. **Vor dem
-  Klick:** der Zugang ist danach weg, und über die Oberfläche lässt er sich
-  nicht reaktivieren.
+- **„Löschung beantragen"** — der DSGVO-Löschweg nach Art. 17. Es gibt
+  **keinen Sofortweg mehr**. Die frühere Aktion „Einwilligung widerrufen &
+  Daten löschen" ist abgeschafft: der Knopf verschwand aus der Oberfläche, und
+  der alte Endpunkt antwortet nur noch mit **417** und dem Hinweis auf den
+  Antrag (`api/profile.py::delete_my_data`) — er löscht nichts, deaktiviert
+  nichts und meldet nicht ab. Auch ältere Clients können die Prüfung durch die
+  Gemeinde damit nicht umgehen.
+  Der Antrag selbst: Die Person liest vor dem Absenden Wirkung und Grenzen,
+  tippt `BEANTRAGEN` und bestätigt. Damit entsteht ein Antrag; **Daten und
+  Einwilligungen bleiben unverändert, die Person bleibt angemeldet.** Der
+  offene Antrag ist wiederholbar, nach dem Neuladen sichtbar und lässt sich
+  zurückziehen. Geprüft und ausgeführt wird er von der Verwaltung unter
+  **Mitglieder → Datenschutz** (Anonymisierung mit dem Wort `ANONYMISIEREN`).
+  Einzelheiten: [N7-DATENSCHUTZ.md](N7-DATENSCHUTZ.md) (Profilsicht) und
+  [N6-DATENSCHUTZ.md](N6-DATENSCHUTZ.md) (Verwaltungssicht).
+  Warum kein Sofortweg: die Mitgliedschaft hängt an vielen Stellen (Beiträge,
+  Dienstplan, Kinder, Gruppen). Ein Klick, der Stammdaten überschreibt und das
+  Konto sperrt, ist nicht rückholbar — deshalb entscheidet eine Person, die
+  den Vorgang prüft.
 
 **Wer keinen Mitgliedsdatensatz hat**, sieht hier keine leere Seite, sondern
 den Hinweis „Kein Mitglied-Datensatz für diesen Nutzer gefunden." Das ist eine
@@ -1042,8 +1103,10 @@ Eine Sitzung gilt nur, solange es das Konto noch gibt **und** es aktiv
 behandelt die Anwendung den Browser wie einen Gast und löscht die Sitzung auf
 dem Server. Das gilt für **alle** Geräte des Benutzers.
 
-- **Über die Anwendung** (der Benutzer nutzt „Einwilligung widerrufen & Daten
-  löschen" auf der Profilseite): die Sitzungen aller Geräte enden **sofort**.
+- **Über die Anwendung** — Löschantrag (`datenschutz.loeschung_beantragen`,
+  bzw. `anonymisieren` führt ihn aus) und Verwaltung („Konto sperren",
+  `zugang.konto_sperren`): die Sitzungen aller Geräte enden **sofort**
+  (`widerrufe_sitzungen`, auch der Status-Cache wird vergessen).
 - **Direkt in der Datenbank** (Sie setzen `enabled` auf 0 oder löschen die
   Zeile): die Sitzung endet **spätestens nach 30 Sekunden**. So lange hält die
   Anwendung das Ergebnis der Kontoprüfung kurz zwischen. Danach antwortet sie
@@ -1055,7 +1118,9 @@ dem Server. Das gilt für **alle** Geräte des Benutzers.
 Die 30 Sekunden stehen im Code als Vorgabe (`benutzerstatus_ttl`); die
 mitgelieferte `docker-compose.yml` reicht keine Umgebungsvariable dafür durch.
 Eine Schaltfläche, mit der ein Administrator ein Konto deaktiviert, enthält
-dieser Stack nicht — im Code deaktiviert nur die Profilseite.
+dieser Stack nicht; im Code sperrt nur `zugang.konto_sperren` (Verwaltung). Die
+Profilseite deaktiviert seit N7 **nicht mehr** — der frühere Sofortweg
+„Einwilligung widerrufen & Daten löschen" ist abgeschafft (siehe 5.3).
 
 ### 8.6 Was Mitglieder im Adressbuch sehen (Sichtbarkeit)
 
@@ -1751,12 +1816,17 @@ seit UX3g suchen (`diakronos.diakonos.api.suche.global`, siehe Abschnitt 8);
 die Oberfläche der Palette ist noch nicht angebunden. Die Mitgliederseite hat
 ihr eigenes, echtes Suchfeld („Nach Name, E-Mail, Gruppe") — das funktioniert.
 
-**Keine Abmelde-Schaltfläche.** Siehe [Abschnitt 3.2](#32-abmelden).
+**Kein Passwort-Reset per Mail** und **kein Passwort ändern durch die Person
+selbst** (siehe oben) — die Abmeldung dagegen ist vorhanden
+([Abschnitt 3.2](#32-abmelden)). Ein Startpasswort setzt die Verwaltung
+(`zugang.setze_passwort`, nur Administrator); die Person ändert es danach
+nicht in der Oberfläche.
 
 **Kein Passwort ändern in der Oberfläche.** Das Profil führt in einer früheren
 Fassung einen Link „Passwort ändern"; dieser Link zeigt auf eine Frappe-Seite
 und ist in dieser Portierung nicht vorhanden (HTTP 404). Auch hier gilt: ein
-vergessenes Passwort wird von einer Person mit Datenbankzugriff neu gesetzt.
+vergessenes Passwort wird von einer Person mit Datenbankzugriff neu gesetzt —
+oder von der Verwaltung über das Startpasswort (`zugang.setze_passwort`).
 
 ---
 
@@ -2507,9 +2577,48 @@ siehe `.env.example`.
 ### 14.4 Wiederherstellen (Kommandozeile)
 
 Die Wiederherstellung ist eine seltene, eingreifende Operation — sie
-**ersetzt den aktuellen Inhalt** der Datenbank. Alle Änderungen seit der
-gewählten Sicherung gehen verloren. Die folgenden Befehle sind gegen eine
-Wegwerf-Datenbank durchgespielt worden.
+**ersetzt den Inhalt** der Datenbank und der Dateiablage. Änderungen seit der
+gewählten Sicherung gehen verloren. Der Ablauf ist so geprüft und gemessen:
+`docs/abnahmen/ABN-2-RESTORE-PROBE.md` (26.11.2026, Datenbank + Dateien,
+37 Sekunden für die Beispielgröße; Nacharbeit 2b mit dem umgebauten Weg).
+
+**Die alte Datenbank wird nicht überschrieben, sondern daneben gelegt.**
+Eingespielt wird in eine neue Datenbank `<ziel>_wiederherstellung`; erst nach
+Migration, Zeilenzählung **und bestandener Prüfung** wird getauscht. Beide
+Umbenennungen laufen in **einer** Transaktion — es gibt keinen Moment, in dem
+die Zieldatenbank fehlt. Die bisherige Datenbank heißt danach
+`<ziel>_vorher_<JJJJMMTT_HHMMSS>` und bleibt stehen, bis Sie sie ausdrücklich
+löschen (Schritt 8). Bricht irgendein Schritt vor dem Tausch ab (auch ein
+Zeilenzahl-Unterschied oder eine leere `alembic_version`), ist die laufende
+Datenbank **unangetastet**. Das braucht Platz: rechnen Sie vorher mit dem
+**Doppelten** Ihrer Datenbankgröße.
+
+> **Der Normalfall ist ein einziger Befehl** (5a unten):
+> `… wiederherstellen <name> --einspielen`. Er prüft die Sicherung, schreibt
+> die Vorsicherung, spielt in die neue Datenbank ein, migriert, zählt, prüft,
+> tauscht und holt die Dateiablage zurück. `psql` ist dafür **nicht** nötig:
+> die Verwaltungsbefehle (`DROP`/`CREATE`/`ALTER DATABASE`) laufen über den
+> Datenbanktreiber, der im app-Image ohnehin liegt. Die Handschritte 2–8 sind
+> der nachvollziehbare Weg daneben (und der Inhalt von `--zeitplan`).
+
+> **Vier Dinge, die schiefgehen, wenn man Schritte abkürzt** (alle in den
+> Restore-Proben aufgetreten):
+> * Ein `pg_restore` direkt im **db**-Dienst braucht den Host-Pfad der
+>   Sicherung (`data/` liegt nicht im Container) — deshalb die Umleitung
+>   `< data/sicherungen/<name>/db.dump` aus dem Projektordner. Mit
+>   `--einspielen` entfällt der Schritt ganz.
+> * Nach `docker compose stop app worker scheduler` gibt es **keinen
+>   laufenden app-Container mehr**. `docker compose exec app …` scheitert dann
+>   an „service not running“; Werkzeugaufrufe laufen deshalb als
+>   `docker compose run --rm --no-deps …` (startet einen einmaligen Container).
+> * Die Dateien müssen in den **Datei-Ordner des Dienstes** (`FILES_DIR`,
+>   beim Standard-Stack der Ordner `data/files`) und dem Dienst-Benutzer
+>   gehören. Wer sie als `root` schreibt (z. B. mit `-u root` oder
+>   `sudo tar`), macht sie für den Dienst unlesbar — Downloads antworten
+>   danach mit Serverfehler 500.
+> * Die Dateiablage wird **immer lokal** eingespielt, auch bei
+>   `SPEICHER_BACKEND=nextcloud`: `files.tar.gz` enthält nur die lokale
+>   Ablage, die Nextcloud-Dateien sichert der Nextcloud-Betreiber (14.5).
 
 1. **Sicherung aussuchen und Prüfsummen prüfen:**
 
@@ -2523,36 +2632,89 @@ Wegwerf-Datenbank durchgespielt worden.
    Sie die gewünschte zuerst mit
    `docker compose exec app python -m diakronos_app.sicherung.wiederherstellen <name>`
    nach `data/sicherungen/<name>/` (siehe 8.7b) — der Befehl prüft Größe und
-   Prüfsumme selbst.
+   Prüfsumme selbst. Ohne Namen nimmt er die jüngste.
 
-2. **Dienste anhalten**, damit während der Wiederherstellung niemand
-   schreibt:
+   Zusätzlich prüfbar, ohne irgendetwas zu ändern:
+
+   ```
+   docker compose exec app python -m diakronos_app.sicherung.wiederherstellen <name> --pruefen
+   ```
+
+   Das nennt Prüfsummen-Ergebnis, lesbaren Dump und die Tabellen der Sicherung
+   und spielt **nichts** ein.
+
+2. **Vor Schritt 3: aktuellen Stand sichern** — Pflicht, nicht „wenn Sie ihn
+   noch brauchen“. **Vorher**, solange `app` noch läuft: in der Oberfläche
+   unter „Einstellungen → Datensicherung“ auf **„Jetzt sichern“** — das ist
+   ein normaler Sicherungslauf (Sperre, Protokollzeile, Aufbewahrung), und Sie
+   finden die Vorsicherung danach in derselben Liste wieder.
+
+   Zusätzlich eine Rohkopie der Datenbank als Notfall-Rückweg:
+
+   ```
+   docker compose exec -T db pg_dump -U diakronos diakronos > alt.sql
+   ```
+
+   `alt.sql` enthält alle Personendaten: löschen, sobald der Vorgang
+   abgeschlossen und geprüft ist.
+
+   *Mit `--einspielen` (Schritt 5a) macht das Werkzeug beides selbst — die
+   Vorsicherung über denselben normalen Sicherungslauf. Wichtig: diese
+   Vorsicherung wird **vor** dem Tausch geschrieben, ihre Protokollzeile
+   steht also in der alten Datenbank und erscheint nach dem Tausch **nicht**
+   mehr in der Sicherungsliste. Die Sicherung selbst liegt vollständig im
+   Ordner `data/sicherungen/<zeitpunkt>/` (mit `FERTIG` und `SHA256SUMS`);
+   die Ausgabe des Werkzeugs nennt den Pfad ausdrücklich. Zum Wiederherstellen
+   aus dieser Vorsicherung: Ordner belassen und mit ihrem Namen aufrufen.
+   `--ohne-vorsicherung` überspringt diesen Schritt — die Ausgabe **warnt**
+   dann deutlich, und ohne eigenes `alt.sql` gibt es keinen Rückweg.*
+
+3. **Dienste anhalten**, damit während der Wiederherstellung niemand schreibt:
 
    ```
    docker compose stop app worker scheduler
    ```
 
-3. **Datenbank ersetzen.** Wenn Sie den aktuellen Inhalt noch brauchen,
-   sichern Sie ihn vorher mit
-   `docker compose exec -T db pg_dump -U diakronos diakronos > alt.sql`:
+   Bleibt eine Verbindung offen, bricht der Tausch mit einer Meldung ab
+   („Es sind noch … Verbindungen offen“) — dann diesen Schritt wiederholen.
+
+4. **Datenbank einspielen und tauschen** — der belegte Weg ist Schritt **5a**
+   (ein Befehl). Wer den Weg von Hand nachvollziehen will (im `db`-Dienst,
+   dort liegen `psql` und `pg_restore`), nimmt die Ausgabe von
+   `… wiederherstellen <name> --zeitplan`: erst in eine **neue** Datenbank
+   einspielen, dann **zählen und prüfen**, erst dann tauschen — nie direkt in
+   die laufende Datenbank.
+
+5. **Dateiablage zurückholen** (die Datenbank ist hier schon getauscht) — als
+   einmaliger Container, weil `app` angehalten ist:
 
    ```
-   docker compose exec -T db psql -U diakronos -d postgres \
-     -c "DROP DATABASE IF EXISTS diakronos WITH (FORCE)"
-   docker compose exec -T db psql -U diakronos -d postgres \
-     -c "CREATE DATABASE diakronos OWNER diakronos"
-   docker compose exec -T db pg_restore -U diakronos -d diakronos \
-     --no-owner --role=diakronos < data/sicherungen/<JJJJ-MM-TT_HHMMSS>/db.dump
+   docker compose run --rm --no-deps -u appuser app python -m \
+     diakronos_app.sicherung.wiederherstellen <JJJJ-MM-TT_HHMMSS> --dateien-einspielen
    ```
 
-4. **Dateiablage zurückholen** (die Pfade im Archiv sind relativ zum
-   Datei-Ordner):
+   `--dateien-einspielen` **migriert nicht** und fasst die Datenbank nicht an:
+   es prüft die Sicherung und schreibt nur die Ablage. Migrationen sind Teil
+   von 5a (`alembic upgrade head` gegen die neue Datenbank, vor dem Tausch).
 
-   ```
-   tar -xzf data/sicherungen/<JJJJ-MM-TT_HHMMSS>/files.tar.gz -C data/files
-   ```
+   * **5a — alles in einem Schritt (der Normalfall):** statt 2–5 können Sie
+     `docker compose run --rm --no-deps -u appuser app python -m \
+     diakronos_app.sicherung.wiederherstellen <JJJJ-MM-TT_HHMMSS> --einspielen`
+     aufrufen. Das Werkzeug macht Vorsicherung (Schritt 2), Einspielen in die
+     neue Datenbank, `alembic upgrade head`, Zeilenzählung, **Prüfung**, Tausch
+     (in einer Transaktion) und Dateiablage — und bricht **vor** dem Tausch
+     ab, wenn etwas nicht stimmt. `psql` ist im Image nicht nötig.
+   * Die Dateiablage wird **nichts gelöscht**: Dateien, die nicht in der
+     Sicherung stehen, bleiben liegen. Dadurch ist der Vorgang wiederholbar
+     und heilt auch eine halb verlorene Ablage. Jede Datei wird gegen die
+     Größe **und** die SHA-256 aus dem Archiv geprüft, bevor sie in die Ablage
+     geht.
+   * Die Ausgabe nennt Zahl und Größe der geschriebenen Dateien und den
+     Ordner, in den geschrieben wurde; erscheint eine **Warnung über
+     `root`-Besitz**, wurde der Befehl ohne `-u appuser` ausgeführt —
+     wiederholen Sie ihn mit.
 
-5. **Starten und prüfen:**
+6. **Starten und prüfen:**
 
    ```
    docker compose start app worker scheduler
@@ -2562,15 +2724,50 @@ Wegwerf-Datenbank durchgespielt worden.
    Im HTTP-Betrieb (ohne `COMPOSE_PROFILES=https`) lautet die Prüfung stattdessen
    `curl -s http://localhost:8100/healthz`.
 
-6. **Stichprobe:** In der Oberfläche nachsehen (Mitgliederzahl, letzte
-   Termine) — oder die Zeilenzahlen mit denen der Sicherung vergleichen,
-   z. B. `docker compose exec -T db psql -U diakronos -d diakronos -c
-   "select count(*) from mitglied"`.
+7. **Stichprobe:** In der Oberfläche nachsehen (Mitgliederzahl, letzte
+   Termine, eine Gruppendatei öffnen) — oder die Zeilenzahlen vergleichen:
 
-Zum Vergleich der Zeilenzahlen vorher/nachher eignet sich dieselbe
-Abfrage auf einer zweiten, frisch eingespielten Datenbank — die
-Wiederherstellung ist genau dann in Ordnung, wenn die Zahlen der Sicherung
-entsprechen.
+   ```
+   docker compose exec -T db psql -U diakronos -d diakronos -c \
+     "select count(*) from mitglied"
+   ```
+
+   Die Sicherung selbst listet ihre Tabellen mit
+   `docker compose exec app /usr/lib/postgresql/17/bin/pg_restore --list /data/sicherungen/<name>/db.dump`.
+
+8. **Aufräumen — erst nach der Stichprobe.** Die alte Datenbank liegt als
+   `diakronos_vorher_<JJJJMMTT_HHMMSS>` daneben und wird **nicht**
+   automatisch gelöscht. Wenn die Stichprobe in Ordnung ist, geben Sie den
+   Platz ausdrücklich frei:
+
+   ```
+   docker compose exec -T db psql -U diakronos -d postgres \
+     -c "DROP DATABASE diakronos_vorher_<JJJJMMTT_HHMMSS>"
+   ```
+
+   Ist etwas nicht in Ordnung, ist der Rückweg ein Gegenstück von Schritt 4
+   (`--tausch` in die andere Richtung geht nicht: benennen Sie die beiden
+   Datenbanken mit `ALTER DATABASE … RENAME TO …` zurück, solange die alte
+   noch da ist). **Erkennt das Werkzeug den halben Zustand selbst** (kein
+   `diakronos`, aber `diakronos_vorher_*`), bricht es mit dem passenden
+   `ALTER DATABASE …`-Befehl in der Meldung ab. Liegen mehrere ausgelagerte
+   Stände herum, listet der Bericht sie auf — gelöscht wird keine.
+
+**Was das Werkzeug zusätzlich tut:** es schließt nach dem Einspielen die
+Protokollzeile der Sicherung (sie steht im Dump noch auf „läuft“), damit die
+Oberfläche keinen abgebrochenen Lauf meldet und die nächste automatische
+Sicherung nicht „Es läuft bereits eine Sicherung“ sagt — und es lässt dabei
+einen gerade laufenden Sicherungslauf in Ruhe. `psql` braucht es dafür nicht:
+`DROP`/`CREATE`/`ALTER DATABASE` und alle Abfragen gehen über den
+Datenbanktreiber im app-Image.
+
+> **Hinweis zur Ablage bei `SPEICHER_BACKEND=nextcloud`.** `files.tar.gz`
+> enthält dann nur die **lokale** Ablage (im Nextcloud-Betrieb oft leer), weil
+> die Dateien in der Nextcloud liegen und dort vom Nextcloud-Betreiber
+> gesichert werden. `--dateien-einspielen` schreibt deshalb ausschließlich
+> lokal nach `FILES_DIR` und rührt die Nextcloud nicht an — fehlende Dateien
+> spielen Sie in diesem Betrieb über die Nextcloud selbst zurück
+> (Versionierung/Papierkorb, Abschnitt 14.5).
 
 > **Wichtig — DSGVO-Löschungen danach erneut ausführen.** Eine Sicherung ist
 > ein Stand von ihrem Zeitpunkt. Wer nach diesem Zeitpunkt gelöscht wurde
@@ -3326,7 +3523,12 @@ Drei Punkte, die beim Bau der Primo-Bausteine sonst zu Überraschungen führen:
   Formular, muss diese Stelle mit: `website/oeffentlich_inhalt.py`
   (`termin_ics`, `_ohne_eine_tagesspanne`).
 
-## 19. Baustein-Bibliothek für Primo (BS-2a, BS-2c)
+## 20. Baustein-Bibliothek für Primo (BS-2a, BS-2c)
+
+> ABN-5/W10: Dieser Abschnitt hieß früher ebenfalls „19" (zwei Abschnitte mit
+> derselben Nummer). Die öffentliche Lese-API ist jetzt Abschnitt **19**, die
+> Bausteine sind **20**. Verweise auf „19.2" meinen je nach Zusammenhang die
+> API oder das Einspielen der Bausteine — der Abschnittstitel entscheidet.
 
 Diakronos bringt sechs fertige Website-Bausteine mit, die in der angebundenen
 Primo-Instanz in der Bibliothek erscheinen (Gruppe **Diakronos**). Sie sind
@@ -3334,7 +3536,7 @@ generisch (keine Gemeindetexte, -farben, -bilder), rufen ihre Daten **beim
 Besucher im Browser** aus der öffentlichen Lese-API (Abschnitt 18) ab und
 lassen sich über Primo-Felder anpassen.
 
-### 19.1 Was mitgeliefert wird
+### 20.1 Was mitgeliefert wird
 
 | Kennung | Name in Primo | Zweck |
 |---|---|---|
@@ -3368,7 +3570,7 @@ python tools/bausteine_sync.py            # spiegeln
 python tools/bausteine_sync.py --pruefen  # prüfen (der Test tut genau das)
 ```
 
-### 19.2 Einspielen
+### 20.2 Einspielen
 
 1. Primo muss angebunden sein (Abschnitt 15.2: `PRIMO_URL`,
    `PRIMO_SUPERUSER_EMAIL`, `PRIMO_SUPERUSER_PASSWORD`/`_FILE`).
@@ -3394,7 +3596,7 @@ Kopie gehört danach dem Redakteur. Ein bewusstes Nachziehen von Code in
 bestehende Site-Kopien ist eine eigene Aufgabe und in BS-2a **nicht**
 enthalten.
 
-### 19.3 Automatisch beim Anmelden
+### 20.3 Automatisch beim Anmelden
 
 Beim Übergang in Primo (Abschnitt 15.4) prüft Diakronos, ob die installierte
 Fassung älter ist als die mitgelieferte, und zieht sie nach. Das läuft als
@@ -3403,7 +3605,7 @@ und ein Fehler dort (Primo weg, Rechte fehlen) verhindert die Anmeldung
 **nicht** — er steht nur als Zeile im Protokoll (ohne Inhalte, ohne Adressen).
 Ist die Bibliothek aktuell, kostet der Weg nur einen Lesevorgang.
 
-### 19.4 Stand abfragen
+### 20.4 Stand abfragen
 
 ```
 GET /api/method/diakronos_app.api.website.bausteine_status
@@ -3420,7 +3622,7 @@ GET /api/method/diakronos_app.api.website.bausteine_status
 der Zugang reicht nicht — der Endpunkt antwortet trotzdem 200 mit einem
 `hinweis` (kein Fehler der Anwendung).
 
-### 19.5 Das Feld „Diakronos-Adresse"
+### 20.5 Das Feld „Diakronos-Adresse"
 
 Beide Bausteine holen ihre Daten per `fetch` von einer **absoluten**
 Adresse (ein relativer Pfad scheitert im Editor-iframe und damit auch auf der
@@ -3435,7 +3637,7 @@ Ist beides leer oder keine absolute `http(s)`-Adresse, bleibt das Feld
 **leer** — es wird keine Adresse erfunden. Dann trägt der Redakteur sie im
 Baustein ein (z. B. `https://gemeinde.example/diakronos`).
 
-### 19.6 Gestaltung
+### 20.6 Gestaltung
 
 Die Bausteine gestalten ausschließlich über CSS-Custom-Properties mit dem
 Präfix `--dk-`, die **von den Site-Stilen überschrieben** werden
@@ -3449,7 +3651,7 @@ Verfügbar sind u. a. `--dk-farbe-text`, `--dk-farbe-gedaempft`,
 `--dk-abstand`, `--dk-abstand-klein`, `--dk-rahmen-radius`,
 `--dk-rahmen-breite`.
 
-### 19.7 Was die Bausteine NICHT tun
+### 20.7 Was die Bausteine NICHT tun
 
 * **Nichts wird öffentlich, was nicht freigegeben ist** (Abschnitt 18): die
   Bausteine lesen ausschließlich die Feld-Positivlisten der öffentlichen API.
@@ -3460,9 +3662,10 @@ Verfügbar sind u. a. `--dk-farbe-text`, `--dk-farbe-gedaempft`,
 * **Keine externen Dienste.** Kein CDN, keine Google-Fonts, kein Tracking;
   einzige Verbindung ist die Diakronos-Adresse aus dem Feld.
 * **Keine Ratenbremse-Teilung:** weil der Abruf im Browser des Besuchers
-  läuft, zählt jeder Besucher für sich (Abschnitt 18.x, öffentliche API).
+  läuft, zählt jeder Besucher für sich — die öffentliche Lese-API
+  (Abschnitt 19.4) bremst je Herkunft, nicht je Baustein.
 
-### 19.8 Ansprechpartner mit Einwilligung (BS-3a)
+### 20.8 Ansprechpartner mit Einwilligung (BS-3a)
 
 Der Baustein „Diakronos: Ansprechpartner" zeigt Personen nur, wenn **beide**
 Bedingungen erfüllt sind:
@@ -3498,7 +3701,7 @@ Pflicht beim Einführen: die Zustimmung **vor** dem Auswählen der Bereiche
 einholen und den Satz im Profil zur Kenntnis nehmen lassen — der Baustein
 zeigt sonst schlicht niemanden an (das ist die richtige Antwort, kein Fehler).
 
-### 19.9 Prüfen
+### 20.9 Prüfen
 
 ```
 # im app-Container (image-intern, ohne Netz gegen den Betrieb nicht möglich)
@@ -3515,10 +3718,10 @@ Wiederkehrende Fehlerbilder:
 | Baustein zeigt „nicht abrufbar" | Feld „Diakronos-Adresse" leer/falsch, oder CORS | Adresse absolut eintragen; `PRIMO_PUBLIC_URL` muss der Website-Herkunft entsprechen |
 | Baustein zeigt „keine Termine" | nichts freigegeben (Kalender/Terminart) | Abschnitt 18: Kalender freigeben, Termine im Status „Festgelegt" |
 | Doppelte Blöcke mit verschiedenen `@v` | Absicht: neue Version neben der alten | alte Fassung in Primo löschen, wenn nicht mehr gebraucht |
-| Ansprechpartner-Baustein zeigt „niemand veröffentlicht" | keine Einwilligung / keine Auswahl / kein Verantwortlicher | Einwilligung der Person prüfen, Bereiche auswählen, Organigramm prüfen (Abschnitt 19.8) |
+| Ansprechpartner-Baustein zeigt „niemand veröffentlicht" | keine Einwilligung / keine Auswahl / kein Verantwortlicher | Einwilligung der Person prüfen, Bereiche auswählen, Organigramm prüfen (Abschnitt 20.8) |
 | Foto fehlt, Person erscheint | `website_einwilligung_foto` nicht gesetzt (oder kein Foto am Mitglied) | Person muss die Foto-Zustimmung selbst geben |
 
-### 19.10 Der Bereich „Bausteine" in Diakronos (BS-2d)
+### 20.10 Der Bereich „Bausteine" in Diakronos (BS-2d)
 
 Auf der Seite **Website** steht unter den Freigaben der Bereich **Bausteine**
 (nur für Systemmanager, Administratoren und Website-Moderatoren — dieselben

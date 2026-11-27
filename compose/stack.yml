@@ -7,7 +7,13 @@ x-app-env: &app-env
   # (`diakronos_app/konfigurationsschutz.py`).
   DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://diakronos:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD muss in .env gesetzt sein (openssl rand -base64 24)}@db:5432/diakronos}
   REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
-  APP_ENV: ${APP_ENV:-development}
+  # SEC-DEF2: Vorgabe ist BETRIEB. Nur ein AUSDRUECKLICH gesetztes
+  # development/test/dev schaltet die Standardwert-Pruefung der App ab; fehlt
+  # die Zeile (oder ist sie leer), laeuft die App im Betriebsmodus. Vorher
+  # stand hier `development` — dann war die Pruefung in jeder
+  # Standardinstallation wirkungslos. `:-` ist Absicht: ein LEERES APP_ENV=
+  # faellt ebenfalls auf `production` (kein stiller Freibrief).
+  APP_ENV: ${APP_ENV:-production}
   LOG_LEVEL: ${LOG_LEVEL:-INFO}
   # Pflicht, kein Default: der Schluessel signiert die Sitzungs-Cookies und
   # verschluesselt gespeicherte Zugangsdaten. Ein einkompilierter Platzhalter

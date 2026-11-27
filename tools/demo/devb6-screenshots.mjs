@@ -35,10 +35,21 @@ import { createRequire } from 'node:module'
 const require = createRequire(import.meta.url)
 const { chromium } = require('playwright')
 
+// SEC-DEF2: KEIN eingebauter Standard-Zugang. Fehlt die Variable, bricht das
+// Skript mit Hinweis ab (der oeffentliche Musterhausen-Demo-Standard steht in
+// tools/demo/TESTKONTEN.md, wird aber nicht stillschweigend eingesetzt).
+function wertOderAbbruch(name) {
+  const wert = process.env[name]
+  if (wert && String(wert).trim()) return wert
+  console.error(`[abbruch] Umgebungsvariable ${name} ist nicht gesetzt. Die Demo-Skripte haben absichtlich KEINEN eingebauten Standard-Zugang (SEC-DEF2).`)
+  process.exit(2)
+}
+
+
 const BASE = (process.env.DEVB6_BASE || 'http://app:8000').replace(/\/$/, '')
 const ZIEL = process.env.ZIEL || '/ausgabe'
-const EMAIL = process.env.ADMIN_EMAIL || 'admin@example.org'
-const PASSWORT = process.env.ADMIN_PASS || 'musterhausen-demo'
+const EMAIL = wertOderAbbruch('ADMIN_EMAIL')
+const PASSWORT = wertOderAbbruch('ADMIN_PASS')
 
 const LAGEN = [
     { name: 'laptop-702x894-fine', breite: 702, hoehe: 894, touch: false },

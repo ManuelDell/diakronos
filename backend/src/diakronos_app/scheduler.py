@@ -11,8 +11,11 @@ Entspricht den `scheduler_events` des Frappe-Originals
 Beide Jobs sind **DSGVO-relevant**:
 
 * `anonymize_expired_audit_logs` pseudonymisiert Audit-Logs nach Ablauf der
-  konfigurierten Frist (`Diakronos Einstellungen.audit_log_retention_days`,
-  Default 1095 Tage).
+  **festen** Frist von 1095 Tagen (3 Jahre) — benannte Konstante
+  `AUDIT_LOG_AUFBEWAHRUNG_TAGE` in `api/audit_policy/anonymize.py`. Sie ist
+  bewusst **nicht** einstellbar: das frueher gelesene Feld
+  `Diakronos Einstellungen.audit_log_retention_days` existiert im Standalone
+  weder im Modell noch in einer Migration (ABN-5/W3).
 * `delete_alte_anmeldeanfragen` loescht Anmeldeanfragen aelter als 14 Tage mit
   den Status 'Anmeldeanfrage' / 'Abgelehnt'.
 

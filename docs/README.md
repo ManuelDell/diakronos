@@ -11,6 +11,7 @@ Projekt-README mit Installation und Betrieb liegt im Repo-Wurzelverzeichnis:
 | [BETRIEBSANLEITUNG.md](BETRIEBSANLEITUNG.md) | Installation, Anmeldung, Sperren und Notweg, Oberfläche, Sicherheit im Betrieb, Dev-Modus, Datensicherung, HTTPS/Domain und nginx-Umstellung (Abschnitt 10), Anmeldung über Authentik (Abschnitt 11). | Betreiber |
 | [N6-DATENSCHUTZ.md](N6-DATENSCHUTZ.md) | Datenschutz-Verwaltung: Einwilligungen, Auskunft als JSON-Ausfuhr, Löschung auf Antrag, Sichtbarkeiten. | Betreiber (Mitgliederadministratoren, System Manager) |
 | [N7-DATENSCHUTZ.md](N7-DATENSCHUTZ.md) | Profilseite aus Sicht des Mitglieds: eigene Daten einsehen, Einwilligungen erteilen und widerrufen. | Betreiber und Mitglieder |
+| [datenschutz/](datenschutz/README.md) | Unterlagen für den Produktivstart: Verzeichnis der Verarbeitungstätigkeiten (Art. 30), TOM (Art. 32), Datenschutzhinweis für Mitglieder, Löschfristen, Abgleich mit dem Bestand. | Verantwortlicher, Betreiber |
 
 ## Entwicklung
 

@@ -31,10 +31,21 @@ const require = createRequire(import.meta.url)
 // über NODE_PATH; createRequire löst ihn genauso auf.
 const { chromium } = require('playwright')
 
+// SEC-DEF2: KEIN eingebauter Standard-Zugang. Fehlt die Variable, bricht das
+// Skript mit Hinweis ab (der oeffentliche Musterhausen-Demo-Standard steht in
+// tools/demo/TESTKONTEN.md, wird aber nicht stillschweigend eingesetzt).
+function wertOderAbbruch(name) {
+  const wert = process.env[name]
+  if (wert && String(wert).trim()) return wert
+  console.error(`[abbruch] Umgebungsvariable ${name} ist nicht gesetzt. Die Demo-Skripte haben absichtlich KEINEN eingebauten Standard-Zugang (SEC-DEF2).`)
+  process.exit(2)
+}
+
+
 const BASE = process.env.FIX1_BASE || 'http://app:8000'
 const ZIEL = process.env.ZIEL || '/ausgabe'
-const EMAIL = process.env.MITGLIED_EMAIL || 'admin@example.org'
-const PASSWORT = process.env.MITGLIED_PASS || 'musterhausen-demo'
+const EMAIL = wertOderAbbruch('MITGLIED_EMAIL')
+const PASSWORT = wertOderAbbruch('MITGLIED_PASS')
 const SEITE = process.env.FIX1_SEITE || '/diakonos#/profile'
 
 // Befund: Viewport 344x561 (schmales Handy, Touch).

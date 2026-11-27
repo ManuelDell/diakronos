@@ -53,10 +53,13 @@ eines Widerrufs von aussen:
   * Weg von **aussen** (Direktabfrage in der DB, SQL-Admin, andere
     Anwendung): hoechstens 30 s, danach faellt der naechste Aufruf auf die
     Wahrheit zurueck.
-  * Weg von **innen** (`delete_my_data`, Admin-Deaktivierung): 0 s, weil
-    `widerrufe_sitzungen` den Cache-Eintrag mit loescht, bevor die
-    Sitzungen rausfliegen. Beide Wege laufen ueber dieselbe Funktion, damit
-    es keinen "fast sofort"-Zweig gibt.
+  * Weg von **innen** (Admin-Sperre `zugang.konto_sperren`, Austritt,
+    Passwortwechsel, Loeschantrag — jede Stelle, die `enabled` schreibt oder
+    Sitzungen aktiv verwirft): 0 s, weil `widerrufe_sitzungen` den Cache-Eintrag mit
+    loescht, bevor die Sitzungen rausfliegen. Alle Wege laufen ueber dieselbe
+    Funktion, damit es keinen "fast sofort"-Zweig gibt. (ABN-5/W1: den alten
+    Sofortloeschweg `profile.delete_my_data` gibt es nicht mehr; der Endpunkt
+    sperrt nur noch und verweist auf den Loeschantrag.)
 
 Warum ueberhaupt cachen und nicht einfach jedes Mal fragen: 30 Sekunden ist
 die Frist, die die Karte erlaubt — 0 Sekunden (immer fragen) waere nur

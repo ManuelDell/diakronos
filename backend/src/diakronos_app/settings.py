@@ -24,9 +24,15 @@ class Settings(BaseSettings):
         hide_input_in_errors=True,
     )
 
-    app_env: str = "development"
+    app_env: str = "production"
     log_level: str = "INFO"
 
+    # SEC-DEF2 (26.11.): Default ist BETRIEB. Nur ein AUSDRUECKLICH gesetztes
+    # `development`/`test`/`dev` schaltet die Ausnahmen der Startpruefung frei
+    # (`konfigurationsschutz.ist_entwicklung`). Vorher war der Default
+    # `development` — dann war die Pruefung in jeder Standardinstallation
+    # wirkungslos (wer ohne `.env` startet, startet ohne Pruefung).
+    #
     # SEC-DEF1: Die Defaults unten sind ABSICHTLICH unsicher und nur fuer
     # `APP_ENV=development`/`test` zugelassen. In jedem anderen APP_ENV
     # bricht der Start beim Anlegen der Settings ab (Modellpruefung unten):
@@ -55,9 +61,9 @@ class Settings(BaseSettings):
         """SEC-DEF1: Platzhalter-Schluessel und Default-DB-Passwort im Betrieb verbieten.
 
         Prueft GENAU die Werte, die diese Instanz tatsaechlich benutzt, und
-        nur ausserhalb von `development`/`test` — eine Pruefung der
-        Feld-Defaults waere unter Test falsch, weil Tests den Platzhalter
-        absichtlich benutzen.
+        laesst sie nur bei AUSDRUECKLICH gesetztem `development`/`test`/`dev`
+        durch (SEC-DEF2) — eine Pruefung der Feld-Defaults waere unter Test
+        falsch, weil Tests den Platzhalter absichtlich benutzen.
         """
         probleme = _unsichere_standardwerte(
             self.app_env, self.secret_key, self.database_url
@@ -364,10 +370,12 @@ class Settings(BaseSettings):
     # die **gesamte** Verzoegerung, mit der eine Deaktivierung von aussen
     # (Direktabfrage in der DB) durchschlaegt.
     #
-    # Der Weg von innen ist davon nicht betroffen: `delete_my_data` und
-    # jede andere Stelle, die `enabled` schreibt, ruft
+    # Der Weg von innen ist davon nicht betroffen: jede Stelle, die
+    # `enabled` schreibt (Admin-Sperre) oder Sitzungen aktiv verwirft (Austritt,
+    # Passwortwechsel, Loeschantrag), ruft
     # `benutzer_status.widerrufe_sitzungen()` — das vergisst den Cache UND
-    # loescht die Sitzungen, also 0 Sekunden (siehe Modulkopf dort).
+    # loescht die Sitzungen, also 0 Sekunden (siehe Modulkopf dort). ABN-5/W1:
+    # `profile.delete_my_data` ist nur noch eine Sperre (417) ohne Schreibzugriff.
     #
     # **Fail closed, und das ist hier eine Zahl mit einer Richtung:** die
     # Frist darf nicht verlaengert werden, um Abfragen zu sparen. Sie ist

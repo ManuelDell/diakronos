@@ -26,6 +26,11 @@ def pytest_configure(config):
 	# Die Google-Verschluesselung verweigert den Platzhalter-Schluessel; Tests ohne
 	# gesetzten SECRET_KEY (netzloser Wegwerf-Lauf) brauchen einen eigenen.
 	os.environ.setdefault("SECRET_KEY", "test-only-secret-key-never-use-in-production")
+	# SEC-DEF2 (26.11.): APP_ENV ist im Betrieb der STANDARD — fehlt der Wert,
+	# prueft der Start die Standardwerte und verweigert den Testlauf. Die
+	# Testsuite ist ausdruecklich eine Testumgebung: hier AUSDRUECKLICH setzen
+	# (nicht ueberschreiben, wenn ein Lauf bewusst production setzt).
+	os.environ.setdefault("APP_ENV", "test")
 	from redis_testdb import privates_redis
 
 	stack = ExitStack()

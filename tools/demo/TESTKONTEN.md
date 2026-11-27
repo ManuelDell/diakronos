@@ -12,6 +12,35 @@ Admin-Konto (hier nicht notiert). Bestehende Konten werden nie ueberschrieben:
 Passwort (oeffentlicher Demo-Standard `musterhausen-demo`, sofern nicht
 geaendert).
 
+## Demo-Standard in Skripten: KEIN stiller Fallback (SEC-DEF2)
+
+Die Adressen und das Passwort unten sind der **oeffentliche Demo-Standard der
+erfundenen Gemeinde** — sie stehen bewusst in dieser Doku und als Werte in
+`musterhausen_daten.py` (dort werden die Konten angelegt).
+
+Screenshot- und Abnahmeskripte setzen sie **nicht mehr stillschweigend** ein:
+sie lesen `ADMIN_EMAIL`/`ADMIN_PASS` (bzw. `MITGLIED_*`, `WEB8x_USER/_PASS`,
+`BETRACHTER_*`, `MT2_PROFIL_EMAIL`/`MT2_PROFIL_PASS` …) aus der Umgebung und
+brechen mit Hinweis und Exit-Code 2 ab, wenn die Variable fehlt. Die Pruef-Funktion
+`wert_oder_abbruch` steht bewusst **inline in jedem Skript** (nicht in einem
+Nachbarmodul): viele Skripte laufen als einzelne Datei in einen Container
+eingehaengt, andere liegen ausserhalb von `tools/demo` (z. B. `tools/ux/`).
+Grund der Regel: ein Skript, das versehentlich auf einer echten Instanz läuft,
+soll nicht mit bekannten Zugangsdaten weiterlaufen.
+
+Harmlose Werte behalten dagegen ihren Standard (`BASE`, `ZIEL`, `DEMO_PROJEKT`
+→ `demo`): SEC-DEF2 betrifft nur Zugangsdaten, nicht Projektnamen, Ports oder
+Adressen.
+
+Aufruf daher immer mit ausdrücklich übergebenen Werten, z. B.:
+
+```
+docker run --rm --network <projekt>_default \
+    -e BASE=http://app:8000 -e ZIEL=/ausgabe \
+    -e ADMIN_EMAIL=admin@example.org -e ADMIN_PASS=musterhausen-demo \
+    … python /w/tools/demo/ux3e-screenshots.py
+```
+
 | Konto | Person | Rolle | verantwortlich fuer (bestehend) | was testen |
 |---|---|---|---|---|
 | `admin@example.org` | Miriam Sonnleitner | System Manager, Mitgliederadministrator, Kalenderadministrator, Ressourcenmoderator (unveraendert) | keine Gruppe mehr (der fruehere Admin-Rueckfall ist entfernt); **bleibt** Moderator aller Kalender und `moderiert_von` der bestaetigten Demo-Buchungen (bewusst nicht neu verteilt) | MUSS: alle Verwaltungsseiten, Mitglieder, Rollen, Kalender, Ressourcen, Plaene; jede Gruppe verwalten (Rollen-Kurzschluss). DARF NICHT: in einer Gruppe als Verantwortlicher stehen. |

@@ -12,10 +12,39 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 
 from playwright.sync_api import sync_playwright
 
-BASE = os.environ["BASE"]
+# SEC-DEF2: KEIN eingebauter Standard-Zugang. Fehlt die Variable (oder ist sie
+# leer), bricht das Skript mit erklaerender Meldung und Exit-Code 2 ab. Der
+# oeffentliche Musterhausen-Demo-Standard steht in ``tools/demo/TESTKONTEN.md``,
+# wird aber nicht stillschweigend eingesetzt: ein Skript, das versehentlich auf
+# einer ECHTEN Instanz laeuft, soll nicht mit bekannten Zugangsdaten weiterlaufen.
+# Absichtlich INLINE (kein Import aus ``tools/demo/zugang.py``): viele dieser
+# Skripte laufen als EINZELNE Datei in einen Container eingehaengt, andere
+# liegen ausserhalb von ``tools/demo`` — ein Nachbarmodul waere dort nicht da.
+def wert_oder_abbruch(name: str, hinweis: str = "") -> str:
+    wert = os.environ.get(name, "")
+    if str(wert).strip():
+        return wert
+    zusatz = f" {hinweis.strip()}" if hinweis.strip() else ""
+    print(
+        f"[abbruch] Umgebungsvariable {name} ist nicht gesetzt.{zusatz} "
+        "Die Demo-Skripte haben absichtlich KEINEN eingebauten Standard-Zugang "
+        "(SEC-DEF2): der oeffentliche Musterhausen-Demo-Standard steht in "
+        "tools/demo/TESTKONTEN.md, muss aber ausdruecklich uebergeben werden.",
+        file=sys.stderr,
+        flush=True,
+    )
+    raise SystemExit(2)
+
+
+# Kein Geheimnis: Standard wie in den uebrigen Demo-Skripten.
+BASE = os.environ.get("BASE", "http://app:8000")
+# SEC-DEF2: Zugangsdaten ausdruecklich aus der Umgebung, kein Demo-Standard.
+ADMIN_EMAIL = wert_oder_abbruch("ADMIN_EMAIL")
+ADMIN_PASS = wert_oder_abbruch("ADMIN_PASS")
 PRIMO = os.environ.get("PRIMO_PUBLIC", "http://192.168.1.11:8095")
 
 ergebnis = {"pruefungen": []}
@@ -33,8 +62,8 @@ with sync_playwright() as p:
     seite = ctx.new_page()
 
     seite.goto(f"{BASE}/", wait_until="domcontentloaded")
-    seite.fill("input[type=email], input[autocomplete=username]", "admin@example.org")
-    seite.fill("input[type=password]", "musterhausen-demo")
+    seite.fill("input[type=email], input[autocomplete=username]", ADMIN_EMAIL)
+    seite.fill("input[type=password]", ADMIN_PASS)
     seite.locator("button[type=submit], button:has-text('Anmelden')").first.click()
     seite.wait_for_load_state("networkidle")
     seite.goto(f"{BASE}/#/website", wait_until="networkidle")

@@ -16,11 +16,22 @@
 import { chromium } from 'playwright'
 import fs from 'node:fs'
 
+// SEC-DEF2: KEIN eingebauter Standard-Zugang. Fehlt die Variable, bricht das
+// Skript mit Hinweis ab (der oeffentliche Musterhausen-Demo-Standard steht in
+// tools/demo/TESTKONTEN.md, wird aber nicht stillschweigend eingesetzt).
+function wertOderAbbruch(name) {
+  const wert = process.env[name]
+  if (wert && String(wert).trim()) return wert
+  console.error(`[abbruch] Umgebungsvariable ${name} ist nicht gesetzt. Die Demo-Skripte haben absichtlich KEINEN eingebauten Standard-Zugang (SEC-DEF2).`)
+  process.exit(2)
+}
+
+
 const BASIS = process.env.UIR4_BASE || 'http://app:8000'
 const ZIEL = process.env.UIR4_ZIEL || '/ausgabe'
-const PASS = process.env.UIR4_PASS || 'musterhausen-demo'
-const MODERATOR = process.env.UIR4_MODERATOR || 'admin@example.org'
-const MITGLIED = process.env.UIR4_MITGLIED || 'anna.beispiel@example.org'
+const PASS = wertOderAbbruch('UIR4_PASS')
+const MODERATOR = wertOderAbbruch('UIR4_MODERATOR')
+const MITGLIED = wertOderAbbruch('UIR4_MITGLIED')
 
 const LAGEN = [
   { name: 'desktop-1440-hell', breite: 1440, hoehe: 900, dunkel: false, handy: false },

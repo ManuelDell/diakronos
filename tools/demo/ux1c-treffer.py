@@ -10,7 +10,7 @@ Aufruf::
     docker run --rm --network ux1c_default \
         -v <repo>:/w:ro -v <ziel>:/ausgabe \
         -e SPA=http://app:8000/diakronos \
-        -e BENUTZER=admin@example.org -e PASSWORT=... \
+        -e BENUTZER=admin@example.org -e PASSWORT=musterhausen-demo \\
         mcr.microsoft.com/playwright/python:v1.49.0-noble \
         python /w/tools/demo/ux1c-treffer.py
 """
@@ -23,8 +23,32 @@ import traceback
 
 from playwright.sync_api import sync_playwright
 
+# SEC-DEF2: KEIN eingebauter Standard-Zugang. Fehlt die Variable (oder ist sie
+# leer), bricht das Skript mit erklaerender Meldung und Exit-Code 2 ab. Der
+# oeffentliche Musterhausen-Demo-Standard steht in ``tools/demo/TESTKONTEN.md``,
+# wird aber nicht stillschweigend eingesetzt: ein Skript, das versehentlich auf
+# einer ECHTEN Instanz laeuft, soll nicht mit bekannten Zugangsdaten weiterlaufen.
+# Absichtlich INLINE (kein Import aus ``tools/demo/zugang.py``): viele dieser
+# Skripte laufen als EINZELNE Datei in einen Container eingehaengt, andere
+# liegen ausserhalb von ``tools/demo`` — ein Nachbarmodul waere dort nicht da.
+def wert_oder_abbruch(name: str, hinweis: str = "") -> str:
+    wert = os.environ.get(name, "")
+    if str(wert).strip():
+        return wert
+    zusatz = f" {hinweis.strip()}" if hinweis.strip() else ""
+    print(
+        f"[abbruch] Umgebungsvariable {name} ist nicht gesetzt.{zusatz} "
+        "Die Demo-Skripte haben absichtlich KEINEN eingebauten Standard-Zugang "
+        "(SEC-DEF2): der oeffentliche Musterhausen-Demo-Standard steht in "
+        "tools/demo/TESTKONTEN.md, muss aber ausdruecklich uebergeben werden.",
+        file=sys.stderr,
+        flush=True,
+    )
+    raise SystemExit(2)
+
+
 SPA = os.environ.get("SPA", "http://app:8000/diakronos/diakonos").rstrip("/")
-BENUTZER = os.environ.get("BENUTZER", "admin@example.org")
+BENUTZER = wert_oder_abbruch("BENUTZER")
 PASSWORT = os.environ.get("PASSWORT", "")
 ZIEL = os.environ.get("ZIEL", "/ausgabe")
 MIN = float(os.environ.get("MIN", "44"))

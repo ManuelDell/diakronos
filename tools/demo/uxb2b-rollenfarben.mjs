@@ -21,6 +21,17 @@ import { createRequire } from 'node:module'
 const require = createRequire('/pw/')
 const { chromium } = require('playwright')
 
+// SEC-DEF2: KEIN eingebauter Standard-Zugang. Fehlt die Variable, bricht das
+// Skript mit Hinweis ab (der oeffentliche Musterhausen-Demo-Standard steht in
+// tools/demo/TESTKONTEN.md, wird aber nicht stillschweigend eingesetzt).
+function wertOderAbbruch(name) {
+  const wert = process.env[name]
+  if (wert && String(wert).trim()) return wert
+  console.error(`[abbruch] Umgebungsvariable ${name} ist nicht gesetzt. Die Demo-Skripte haben absichtlich KEINEN eingebauten Standard-Zugang (SEC-DEF2).`)
+  process.exit(2)
+}
+
+
 const BASE = process.env.BASE || 'http://app:8000'
 const ZIEL = process.env.ZIEL || '/ausgabe'
 // Mehrere Demo-Konten: sie sind in UNTERSCHIEDLICHEN Zellen eingeteilt — je
@@ -32,7 +43,7 @@ const KONTEN = [
   { marke: 'dirigent', email: process.env.DIRIGENT_EMAIL || 'clara.imhof@example.org' },
   { marke: 'einsingen', email: process.env.EINSINGEN_EMAIL || 'elvira.dorn@example.org' },
 ]
-const PASSWORT = process.env.DEMO_PASS || 'musterhausen-demo'
+const PASSWORT = wertOderAbbruch('DEMO_PASS')
 const SEITE = '#/planrahmen/meine-dienste'
 const ERWARTET = ['accent', 'info', 'ok', 'warm-500', 'rueckfall']
 

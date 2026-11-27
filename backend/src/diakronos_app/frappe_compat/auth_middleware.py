@@ -295,8 +295,10 @@ class SessionMiddleware(BaseHTTPMiddleware):
     Die Kosten dieser Pruefung stehen in `benutzer_status.py`: sie ist
     ein Redis-`GET` (0,130 ms gemessen) und nur alle
     `settings.benutzerstatus_ttl` Sekunden (Default 30) ein DB-Lookup
-    (0,407 ms). Der aktive Widerruf (`delete_my_data`) kommt ohne diese
-    Frist aus, weil er den Cache selbst loescht.
+    (0,407 ms). Der aktive Widerruf von innen (Admin-Sperre, Austritt,
+    Passwortwechsel, Loeschantrag) kommt ohne diese Frist aus, weil er den Cache selbst
+    loescht. ABN-5/W1: `profile.delete_my_data` ist nur noch eine Sperre (417,
+    Verweis auf den Loeschantrag) und schreibt gar nichts mehr.
     """
 
     async def dispatch(self, request: Request, call_next):
