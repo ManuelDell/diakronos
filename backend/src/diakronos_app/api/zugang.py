@@ -718,7 +718,7 @@ def setze_passwort(mitglied_id: str, passwort: str, request=None) -> dict[str, A
     from diakronos_app.anmeldung.konfiguration import oidc_aktiv
     if oidc_aktiv():
         throw("Passwörter werden über Authentik verwaltet.", ValidationError)
-    pruefe_passwort(passwort)
+    pruefe_passwort(passwort, benutzer=user)
 
     # B1 (R-P1-8): ein Mitgliederadministrator darf kein Verwaltungskonto
     # uebernehmen, indem er dessen Startpasswort setzt.

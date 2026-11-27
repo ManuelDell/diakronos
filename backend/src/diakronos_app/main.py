@@ -166,6 +166,11 @@ def erstelle_app(einstellungen=None):
 
     praefix = _base_path.setze_praefix(getattr(s, "diakronos_base_path", ""))
 
+    # ASVS2-4: Token/Code/State aus Adressen im Zugriffsprotokoll maskieren.
+    from diakronos_app import zugriffslog as _zugriffslog
+
+    _zugriffslog.einschalten()
+
     docs_url, redoc_url, openapi_url = _doku_adressen(s)
     app = FastAPI(
         title="Diakronos API",

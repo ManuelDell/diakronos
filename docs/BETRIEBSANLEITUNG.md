@@ -637,6 +637,16 @@ Stammdaten und lässt sie bearbeiten:
   Konto sperrt, ist nicht rückholbar — deshalb entscheidet eine Person, die
   den Vorgang prüft.
 
+- **Passwort** (ASVS2-3) — das eigene Passwort ändern: aktuelles Passwort,
+  neues Passwort zweimal. Es gilt dieselbe Regel wie überall (mindestens
+  8 Zeichen, sehr häufige Passwörter und der eigene Anmeldename werden
+  abgelehnt). Höchstens 5 Versuche je Konto in 15 Minuten. Danach sind **alle**
+  Sitzungen des Kontos beendet, auch auf anderen Geräten; die Anmeldemaske
+  zeigt „Passwort geändert — bitte mit dem neuen Passwort anmelden.“ Bei
+  Anmeldung über Authentik (OIDC) steht hier nur der Hinweis, dass das
+  Passwort dort verwaltet wird. Ein vergessenes Passwort setzt weiter die
+  Gemeindeleitung (Passwort-Link).
+
 **Wer keinen Mitgliedsdatensatz hat**, sieht hier keine leere Seite, sondern
 den Hinweis „Kein Mitglied-Datensatz für diesen Nutzer gefunden." Das ist eine
 ehrliche Antwort auf eine unvollständige Zuordnung — etwa bei einem frisch

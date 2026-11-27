@@ -262,7 +262,7 @@ def _pruefe_werte(felder: dict) -> dict:
         raise FormularFehler("Das Passwort muss eine Zahl enthalten.")
     # Und die BESTEHENDE Passwortregel (Laenge 8..1024) — keine zweite Fassung.
     try:
-        pruefe_passwort(passwort)
+        pruefe_passwort(passwort, benutzer=email)
     except Exception as exc:  # noqa: BLE001 — Meldung der bestehenden Regeln
         raise FormularFehler(getattr(exc, "message", "") or str(exc)) from None
     return {

@@ -93,6 +93,8 @@ FORWARD_AUTH_AUSNAHMEN = (
 # nichts. Textgleich mit `SITZUNG_HINWEIS` in `frontend/src/shared/csrf-heilung.js`.
 GRUND_HINWEISE = {
     "csrf": "Sitzung abgelaufen — bitte neu anmelden.",
+    # ASVS2-3: nach dem Aendern des eigenen Passworts sind alle Sitzungen beendet.
+    "passwort": "Passwort geändert — bitte mit dem neuen Passwort anmelden.",
 }
 
 

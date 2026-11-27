@@ -4,6 +4,7 @@ Kein Versand. Ein Token pro Konto; Ersetzen und Einlösen sperren dieselbe
 Zeile. Das Startpasswort gibt niemals eine Vollsitzung, sondern nur einen
 kurzen, zweckgebundenen Passwort-Link. CalDAV bleibt bis zum Wechsel gesperrt.
 """
+from functools import lru_cache
 from datetime import datetime, timedelta, timezone
 import hashlib
 import secrets
@@ -18,9 +19,46 @@ def _jetzt():
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
-def pruefe_passwort(passwort):
+@lru_cache(maxsize=1)
+def haeufige_passwoerter() -> frozenset[str]:
+    """ASVS2-2: Liste haeufiger Passwoerter (kleingeschrieben, >= 8 Zeichen).
+
+    Quelle und Lizenz stehen im Kopf der Datei
+    ``anmeldung/daten/haeufige_passwoerter.txt`` (SecLists, MIT) — sie wird ueber
+    ``importlib.resources`` gelesen (liegt im Paket, auch im Image).
+    """
+    from importlib.resources import files
+
+    text = files("diakronos_app.anmeldung").joinpath("daten/haeufige_passwoerter.txt").read_text("utf-8")
+    return frozenset(
+        zeile.strip() for zeile in text.splitlines()
+        if zeile.strip() and not zeile.startswith("#")
+    )
+
+
+def pruefe_passwort(passwort, *, benutzer: str | None = None):
+    """Die EINE Passwortregel (alle Setz-Wege rufen sie).
+
+    ASVS 5 (Stufe 1/2): mindestens 8 Zeichen, hoechstens 1024; ASVS2-2:
+    kein haeufiges Passwort (Liste), kein einzelnes wiederholtes Zeichen und
+    nicht der Anmeldename/die E-Mail selbst. Die Meldung nennt den Grund,
+    ohne das Passwort zu wiederholen.
+    """
     if not isinstance(passwort, str) or not 8 <= len(passwort) <= 1024:
         raise ValidationError("Das Passwort muss zwischen 8 und 1024 Zeichen haben.")
+    klein = passwort.strip().lower()
+    if not klein:
+        raise ValidationError("Das Passwort darf nicht nur aus Leerzeichen bestehen.")
+    if len(set(klein)) == 1:
+        raise ValidationError("Das Passwort besteht nur aus einem wiederholten Zeichen — bitte ein anderes waehlen.")
+    if klein in haeufige_passwoerter():
+        raise ValidationError(
+            "Dieses Passwort gehoert zu den haeufigsten und ist leicht zu erraten — bitte ein anderes waehlen.")
+    if benutzer:
+        name = str(benutzer).strip().lower()
+        lokal = name.split("@", 1)[0]
+        if klein in {name, lokal}:
+            raise ValidationError("Das Passwort darf nicht der Anmeldename oder die E-Mail-Adresse sein.")
 
 
 def wechsel_noetig(user):

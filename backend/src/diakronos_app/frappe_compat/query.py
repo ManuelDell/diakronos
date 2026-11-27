@@ -356,6 +356,18 @@ def _row_to_dict(row, field_map: list[tuple[str, str]]) -> dict:
 # ── oeffentliche API ────────────────────────────────────────────────────────
 
 
+def _ist_spalte(attr) -> bool:
+	"""ASVS2-1: Ist das ein abfragbares Modell-Attribut (Spalte/Property)?
+
+	`getattr(model, name)` liefert fuer Namen wie `__class__` oder `metadata`
+	auch etwas — nur eben keine Spalte. Sortiert werden darf nur nach echten
+	Modell-Attributen.
+	"""
+	from sqlalchemy.orm.attributes import QueryableAttribute
+
+	return isinstance(attr, QueryableAttribute)
+
+
 def get_all(
 	doctype: str,
 	filters=None,
@@ -422,7 +434,7 @@ def get_all(
 				descending = token.lower().endswith(" desc")
 				name = token.rsplit(" ", 1)[0].strip().strip("`")
 				col = getattr(model, name, None)
-				if col is None:
+				if not _ist_spalte(col):  # ASVS2-1: Methoden/Dunder sind keine Spalte
 					raise KeyError(f"{doctype}: unbekanntes Sortierfeld {name!r}")
 				query = query.order_by(desc(col) if descending else asc(col))
 		elif is_child_table(doctype):
@@ -524,7 +536,12 @@ def get_value(
 			token = str(order_by).strip()
 			descending = token.lower().endswith(" desc")
 			fname = token.rsplit(" ", 1)[0].strip().strip("`")
-			query = query.order_by(desc(getattr(model, fname)) if descending else asc(getattr(model, fname)))
+			# ASVS2-1: wie get_all — nur echte Spalten; ein unbekannter Name ist
+			# ein klarer Fehler (KeyError -> 4xx), kein AttributeError/500.
+			col = getattr(model, fname, None)
+			if not _ist_spalte(col):
+				raise KeyError(f"{doctype}: unbekanntes Sortierfeld {fname!r}")
+			query = query.order_by(desc(col) if descending else asc(col))
 		elif is_child_table(doctype):
 			query = query.order_by(asc(model.idx))
 		row = sess.execute(query).first()

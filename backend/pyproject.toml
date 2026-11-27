@@ -119,7 +119,7 @@ version = {file = ["src/diakronos_app/VERSION"]}
 [tool.setuptools.package-data]
 # ABN-3: die EINE Datei mit der Versionsnummer. Ohne diese Zeile fehlte sie in
 # einer Nicht-Editable-Install und `/healthz` meldete "0.0.0-unbekannt".
-"diakronos_app" = ["VERSION"]
+"diakronos_app" = ["VERSION", "anmeldung/daten/*.txt"]  # ASVS2-2: Liste haeufiger Passwoerter
 "diakronos_app.import_metadaten" = ["*.json", "*.tsv"]
 "diakronos_app.models" = ["_mapping.json"]
 "diakronos_app.planrahmen" = ["schema/*.json", "doku/*.md", "doku/kochbuch/*.json", "doku/instanzen/*.json"]

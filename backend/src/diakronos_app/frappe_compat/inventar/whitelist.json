@@ -7966,6 +7966,33 @@
    "ausnahme_quelle": "rumpf, name, deklaration",
    "deklariert": "schreibend",
    "einstufung": "schreibend",
+   "funktion": "diakronos_app.api.profile.passwort_aendern",
+   "methoden": [
+    "POST"
+   ],
+   "methoden_pflicht": "POST",
+   "modul": "diakronos_app.api.profile",
+   "nach_name": "schreibend",
+   "nach_rumpf": "schreibend",
+   "name": "passwort_aendern",
+   "pfade": [
+    "api.passwort_aendern",
+    "diakronos.diakonos.api.profile.passwort_aendern",
+    "diakronos_app.api.profile.passwort_aendern",
+    "passwort_aendern",
+    "profile.passwort_aendern"
+   ],
+   "rumpf_grund": "Aufruf sess.commit()",
+   "rumpf_ueber": null
+  },
+  {
+   "allow_guest": false,
+   "ausnahme": null,
+   "ausnahme_art": null,
+   "ausnahme_greift": false,
+   "ausnahme_quelle": "rumpf, name, deklaration",
+   "deklariert": "schreibend",
+   "einstufung": "schreibend",
    "funktion": "diakronos_app.api.profile.update_adressbuch_sichtbarkeit",
    "methoden": [
     "POST"
@@ -11901,12 +11928,12 @@
    "rumpf_ueber": null
   }
  ],
- "funktionen": 442,
+ "funktionen": 443,
  "nur_test": [],
- "registrierte_pfade": 2477,
+ "registrierte_pfade": 2482,
  "rumpf_zaehlung": {
   "lesend": 204,
-  "schreibend": 238
+  "schreibend": 239
  },
  "widersprueche": [
   {
@@ -12529,6 +12556,6 @@
  ],
  "zaehlung": {
   "lesend": 193,
-  "schreibend": 249
+  "schreibend": 250
  }
 }

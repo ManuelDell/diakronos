@@ -1121,3 +1121,4 @@ tests/ux-k1-token-kontrast.test.mjs
 # ABN-3: Versionsanzeige — eine Zahl in /healthz und Oberflaeche, Fusszeile,
 # "Einstellungen -> Ueber Diakronos" (auch die Update-/Rueckweg-Skripte).
 tests/abn3-*.test.mjs
+tests/asvs2-passwort-aendern.test.mjs

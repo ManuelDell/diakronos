@@ -619,3 +619,68 @@ def delete_my_data():
     """Sperre für alte Clients: kein Sofortlöschen, Verweis auf den Antrag (417)."""
     _get_my_mitglied()
     throw("Bitte im Profil einen Löschantrag stellen. Die Gemeindeverwaltung prüft ihn; es werden nicht sofort Daten gelöscht.")
+
+
+# ── ASVS2-3: eigenes Passwort aendern ─────────────────────────────────────────
+#: Hoechstens so viele Versuche je Konto und Zeitfenster. Ein Angreifer mit
+#: einer gestohlenen Sitzung soll das aktuelle Passwort nicht durchprobieren
+#: koennen; das Budget haengt am KONTO (ein Neuanmelden setzt es nicht zurueck).
+PASSWORT_AENDERN_MAX = 5
+PASSWORT_AENDERN_FENSTER = 15 * 60
+
+
+@whitelist(methods=["POST"], allow_guest=False)
+def passwort_aendern(aktuelles_passwort=None, neues_passwort=None):
+    """Das EIGENE Passwort aendern (ASVS: Nutzer koennen ihr Passwort aendern).
+
+    * Verlangt das aktuelle Passwort (eine offene Sitzung allein reicht nicht).
+    * Dieselbe Passwortregel wie ueberall (`pruefe_passwort`, inkl. Liste
+      haeufiger Passwoerter); das neue muss sich vom aktuellen unterscheiden.
+    * Hoechstens 5 Versuche je Konto in 15 Minuten.
+    * Bei Anmeldung ueber Authentik (OIDC) gibt es kein lokales Passwort.
+    * Danach werden ALLE Sitzungen des Kontos beendet (auch diese) — wer das
+      Passwort kennt, muss sich neu anmelden; eine geklaute Sitzung faellt weg.
+    """
+    from sqlalchemy import select
+
+    from diakronos_app.anmeldung.konfiguration import oidc_aktiv
+    from diakronos_app.anmeldung.passwortzugang import pruefe_passwort
+    from diakronos_app.db import SessionLocal
+    from diakronos_app.frappe_compat import benutzer_status, loginversuche
+    from diakronos_app.frappe_compat.passwoerter import neuer_hash, pruefe
+    from diakronos_app.models.core import User
+    from diakronos_app.models.passwortzugang import Passwortzugang
+
+    user = session.user
+    if not user or user == "Guest":
+        throw("Nicht angemeldet.", FrappePermissionError)
+    if oidc_aktiv():
+        throw("Passwörter werden über Authentik verwaltet — dort ändern.", ValidationError)
+    aktuell = aktuelles_passwort if isinstance(aktuelles_passwort, str) else ""
+    neu = neues_passwort if isinstance(neues_passwort, str) else ""
+
+    erlaubt, _rest = loginversuche.pruefe_werkzeugbudget(
+        "passwort_aendern", str(user), PASSWORT_AENDERN_MAX, PASSWORT_AENDERN_FENSTER)
+    if not erlaubt:
+        throw("Zu viele Versuche. Bitte in 15 Minuten erneut versuchen.", ValidationError)
+
+    pruefe_passwort(neu, benutzer=str(user))
+    if neu == aktuell:
+        throw("Das neue Passwort muss sich vom aktuellen unterscheiden.", ValidationError)
+
+    with SessionLocal() as sess:
+        konto = sess.get(User, user, with_for_update=True)
+        if konto is None or not benutzer_status.konto_ist_aktiv(konto):
+            throw("Dieses Konto ist nicht aktiv.", FrappePermissionError)
+        if not konto.password_hash or not pruefe(aktuell, konto.password_hash):
+            throw("Das aktuelle Passwort stimmt nicht.", ValidationError)
+        konto.password_hash = neuer_hash(neu)
+        zugang = sess.scalar(select(Passwortzugang).where(Passwortzugang.user == user))
+        if zugang is not None:
+            # Ein offener Passwort-Link ist mit dem Wechsel ueberholt.
+            zugang.wechsel_noetig = False
+            zugang.token_hash = None
+            zugang.gueltig_bis = None
+        sess.commit()
+    benutzer_status.widerrufe_sitzungen(str(user))
+    return {"success": True, "neu_anmelden": True}

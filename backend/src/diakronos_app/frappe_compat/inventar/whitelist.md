@@ -5,10 +5,10 @@ Grundlage: das lebende Register `diakronos_app.frappe_compat.registry`
 nach dem Import aller API-Module, dazu der Funktionsrumpf aus dem AST
 (`tools/whitelist_lesen.py`).
 
-* registrierte Pfade: **2477**
-* eindeutige Funktionen: **442**
-* lesend: **193**, schreibend: **249**
-* Rumpfbefund: schreibend 238, lesend 204, unbekannt 0
+* registrierte Pfade: **2482**
+* eindeutige Funktionen: **443**
+* lesend: **193**, schreibend: **250**
+* Rumpfbefund: schreibend 239, lesend 204, unbekannt 0
 
 ## Einstufung
 
@@ -236,6 +236,7 @@ Ausnahmen OHNE Wirkung (die Funktion ist ohnehin schreibend — Eintrag entferne
 | `diakronos_app.api.planung.veroeffentliche_plan` | ['POST'] | nein |
 | `diakronos_app.api.planung.zurueckziehen_plan` | ['POST'] | nein |
 | `diakronos_app.api.profile.delete_my_data` | ['POST'] | nein |
+| `diakronos_app.api.profile.passwort_aendern` | ['POST'] | nein |
 | `diakronos_app.api.profile.update_adressbuch_sichtbarkeit` | ['POST'] | nein |
 | `diakronos_app.api.profile.update_einwilligung` | ['POST'] | nein |
 | `diakronos_app.api.profile.update_my_profile` | ['POST'] | nein |

@@ -124,9 +124,8 @@
               <label>E-Mail</label>
               <span class="prof-hinweis">
                 {{ profile.email }}
-                <!-- OP-ADMIN-16: Der Link „Passwort ändern ↗“ führte auf eine
-                     rohe 404-Seite. Passwörter setzt in dieser Installation die
-                     Gemeindeleitung — hier steht deshalb nur der Hinweis. -->
+                <!-- OP-ADMIN-16 / ASVS2-3: Aendern geht jetzt unten in der Karte
+                     „Passwort“; vergessen -> weiter ueber die Gemeindeleitung. -->
                 <span class="prof-klein">Passwort vergessen? Melde dich bei der Gemeindeleitung.</span>
               </span>
             </div>
@@ -239,6 +238,9 @@
       />
 
       <!-- ── BF1-L: Konto / Abmelden ── -->
+      <!-- ASVS2-3: eigenes Passwort aendern (bei OIDC nur ein Hinweis). -->
+      <PasswortAendern />
+
       <DkCard title="Konto">
         <div class="prof-konto">
           <p class="prof-klein prof-konto-text">
@@ -316,6 +318,7 @@ import DkHint from '../components/ui/DkHint.vue'
 import LoeschantragKarte from '../components/mitglieder/LoeschantragKarte.vue'
 // BS-3b: eigener Abschnitt „Auf der Website als Ansprechpartner erscheinen“.
 import MeineEinwilligung from '../components/website/MeineEinwilligung.vue'
+import PasswortAendern from '../components/profil/PasswortAendern.vue'
 import { useAbmelden } from '../composables/useAbmelden.js'
 import { useFormularSchutz } from '../composables/useFormularSchutz.js'
 import { useVerlassenSchutz } from '../composables/useVerlassenSchutz.js'
